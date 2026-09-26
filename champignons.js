@@ -146,7 +146,7 @@ function removeLocalSpot(id){writeLocalSpots(loadLocalSpots().filter(function(x)
 function liveReference(){var p=savedUserPosition();return p&&Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon))?p:null}
 function localDistanceKm(s){var p=liveReference(),lat=Number(s&&s.latitude),lon=Number(s&&s.longitude);if(!p||!Number.isFinite(lat)||!Number.isFinite(lon))return null;return haversine(Number(p.lat),Number(p.lon),lat,lon)/1000}
 function applyLiveDistances(rows){return (rows||[]).map(function(s){var x=Object.assign({},s),d=localDistanceKm(x);x.distanceKm=d==null?null:Number(d.toFixed(1));return x})}
-function keepNearbyWoods(rows){return (rows||[]).filter(function(s){var d=Number(s&&s.distanceKm);if(!Number.isFinite(d)){var calc=localDistanceKm(s);if(calc==null)return false;d=calc;s.distanceKm=Number(calc.toFixed(1))}return d<=150})}
+function keepNearbyWoods(rows){return (rows||[]).filter(function(s){var d=Number(s&&s.distanceKm);if(!Number.isFinite(d)){var calc=localDistanceKm(s);if(calc==null)return false;d=calc;s.distanceKm=Number(calc.toFixed(1))}return d<=100})}
 function forestProfile(tags){tags=tags||{};var leaf=clean(tags.leaf_type||tags.wood||tags.genus||tags.species||'').toLowerCase();if(/needle|conifer|pin|picea|sapin|abies|cedr/.test(leaf))return{species:'Cèpes des pins, lactaires, chanterelles',photoUrl:'mushroom-coniferes.svg',habitat:'Sous conifères : pins, sapins et épicéas. Variétés possibles à confirmer sur place.'};if(/broad|decidu|ch[eê]ne|quercus|h[eê]tre|fagus|chataign/.test(leaf))return{species:'Cèpes / bolets, girolles, trompettes',photoUrl:'mushroom-feuillus.svg',habitat:'Sous feuillus : chênes, hêtres et châtaigniers. Variétés possibles à confirmer sur place.'};return{species:'Cèpes / bolets, girolles, chanterelles',photoUrl:'mushroom-mixte.svg',habitat:'Forêt mixte ou essence non précisée. Variétés possibles à confirmer sur place.'}}
 function forestPrivacy(tags){
   tags=tags||{};
@@ -168,29 +168,23 @@ function readForestCache(g){
 function writeForestCache(g,rows){try{localStorage.setItem(FOREST_CACHE_KEY,JSON.stringify({lat:Number(g.lat),lon:Number(g.lon),ts:Date.now(),rows:(rows||[]).slice(0,160)}))}catch(_){}}
 async function fetchForestsRadius(g,radius,limit){
   if(!g||!Number.isFinite(Number(g.lat))||!Number.isFinite(Number(g.lon)))return[];
-  var lat=Number(g.lat),lon=Number(g.lon);
-  var q='[out:json][timeout:12];(way(around:'+radius+','+lat+','+lon+')[name][landuse=forest];relation(around:'+radius+','+lat+','+lon+')[name][landuse=forest];way(around:'+radius+','+lat+','+lon+')[name][natural=wood];relation(around:'+radius+','+lat+','+lon+')[name][natural=wood];);out center tags '+limit+';';
-  var endpoints=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
-  for(var ei=0;ei<endpoints.length;ei++){
-    try{
-      var ctrl=new AbortController(),timer=setTimeout(function(){ctrl.abort()},14000);
-      var r=await fetch(endpoints[ei]+'?data='+encodeURIComponent(q),{headers:{accept:'application/json'},cache:'no-store',signal:ctrl.signal});
-      clearTimeout(timer);
-      if(!r.ok)continue;
-      var j=await r.json(),seen=new Set(),rows=[];
-      (j.elements||[]).forEach(function(e){
-        var t=e.tags||{},name=clean(t.name||'');if(!name)return;
-        var elat=Number(e.lat!=null?e.lat:e.center&&e.center.lat),elon=Number(e.lon!=null?e.lon:e.center&&e.center.lon);
-        if(!Number.isFinite(elat)||!Number.isFinite(elon))return;
-        var d=haversine(lat,lon,elat,elon)/1000;if(d>150)return;
-        var key=normSpecies(name)+'|'+elat.toFixed(3)+'|'+elon.toFixed(3);if(seen.has(key))return;seen.add(key);
-        var p=forestProfile(t),privacy=forestPrivacy(t);
-        rows.push({id:'osm-'+e.type+'-'+e.id,woodName:name,city:clean(t['addr:city']||t['addr:place']||t['is_in:city']||''),latitude:elat,longitude:elon,distanceKm:Number(d.toFixed(1)),species:p.species,habitat:p.habitat,season:'Selon météo, sol et essences',category:'Bois / forêt cartographié',source:'osm',isReferenceForest:true,isPrivate:privacy==='private'?true:privacy==='public'?false:null,privacyStatus:privacy,photoUrl:p.photoUrl,note:'Bois cartographié. Les champignons indiqués sont des possibilités liées au type de forêt, pas une présence garantie.'});
-      });
-      return rows.sort(function(a,b){return a.distanceKm-b.distanceKm})
-    }catch(_){}
-  }
-  return[]
+  var lat=Number(g.lat),lon=Number(g.lon),maxRadius=Math.min(100000,Math.max(1000,Number(radius)||40000));
+  try{
+    var url='/api/forests?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&radius='+encodeURIComponent(maxRadius)+'&limit='+encodeURIComponent(Math.min(300,Number(limit)||180));
+    var r=await fetch(url,{cache:'no-store'}),j=await r.json();
+    if(!r.ok||!j||!j.ok||!Array.isArray(j.elements))return[];
+    var seen=new Set(),rows=[];
+    (j.elements||[]).forEach(function(e){
+      var t=e.tags||{},name=clean(t.name||'');if(!name)return;
+      var elat=Number(e.lat!=null?e.lat:e.center&&e.center.lat),elon=Number(e.lon!=null?e.lon:e.center&&e.center.lon);
+      if(!Number.isFinite(elat)||!Number.isFinite(elon))return;
+      var d=haversine(lat,lon,elat,elon)/1000;if(d>100)return;
+      var key=normSpecies(name)+'|'+elat.toFixed(3)+'|'+elon.toFixed(3);if(seen.has(key))return;seen.add(key);
+      var p=forestProfile(t),privacy=forestPrivacy(t);
+      rows.push({id:'osm-'+e.type+'-'+e.id,woodName:name,city:clean(t['addr:city']||t['addr:place']||t['is_in:city']||''),latitude:elat,longitude:elon,distanceKm:Number(d.toFixed(1)),species:p.species,habitat:p.habitat,season:'Selon météo, sol et essences',category:'Bois / forêt cartographié',source:'osm',isReferenceForest:true,isPrivate:privacy==='private'?true:privacy==='public'?false:null,privacyStatus:privacy,photoUrl:p.photoUrl,note:'Bois cartographié. Les champignons indiqués sont des possibilités liées au type de forêt, pas une présence garantie.'});
+    });
+    return rows.sort(function(a,b){return a.distanceKm-b.distanceKm})
+  }catch(_){return[]}
 }
 function dedupeForestRows(rows){
   var map=new Map();
@@ -204,9 +198,9 @@ async function discoverPublicForests(g){
   if(!g||!Number.isFinite(Number(g.lat))||!Number.isFinite(Number(g.lon)))return[];
   var cached=readForestCache(g);
   if(cached&&cached.length)return keepNearbyWoods(cached);
-  var near=await fetchForestsRadius(g,60000,120);
+  var near=await fetchForestsRadius(g,40000,120);
   if(near.length){writeForestCache(g,near);return near}
-  var wider=await fetchForestsRadius(g,100000,140);
+  var wider=await fetchForestsRadius(g,100000,200);
   if(wider.length){writeForestCache(g,wider);return wider}
   return[]
 }
