@@ -11,10 +11,9 @@ function clampNumber(v,min,max,fallback){
 
 async function queryOverpass(lat,lon,radius,limit){
   const q='[out:json][timeout:15];('+
-    'way(around:'+radius+','+lat+','+lon+')[name][landuse=forest];'+
-    'relation(around:'+radius+','+lat+','+lon+')[name][landuse=forest];'+
-    'way(around:'+radius+','+lat+','+lon+')[name][natural=wood];'+
-    'relation(around:'+radius+','+lat+','+lon+')[name][natural=wood];'+
+    'nwr(around:'+radius+','+lat+','+lon+')[landuse=forest];'+
+    'nwr(around:'+radius+','+lat+','+lon+')[natural=wood];'+
+    'nwr(around:'+radius+','+lat+','+lon+')[landuse=wood];'+
     ');out center tags '+limit+';';
   const endpoints=[
     'https://overpass-api.de/api/interpreter',
