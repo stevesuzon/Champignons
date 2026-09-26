@@ -125,7 +125,7 @@
 .woodGrid .spot h4{font-size:17px!important;line-height:1.12!important;margin:4px 0 6px!important;overflow-wrap:anywhere}
 .woodGrid .woodDistanceBig{display:flex!important;justify-content:center;width:100%;font-size:15px!important;margin:5px 0!important;padding:6px 5px!important}
 .woodGrid .spot p{font-size:12px!important;line-height:1.28!important;margin:5px 0!important;overflow-wrap:anywhere}
-.woodGrid .speciesLine{font-size:13px!important;line-height:1.25!important}
+.woodGrid .speciesLine{font-size:17px!important;line-height:1.22!important;font-weight:1000!important;color:#fff!important;margin:8px 0!important}
 .woodGrid .referenceForestBadge,.woodGrid .localWoodBadge{font-size:10px!important;line-height:1.15;white-space:normal}
 .woodGrid .spot .btn,.woodGrid .woodShare{width:100%!important;min-height:45px!important;margin-top:7px!important;padding:7px 5px!important;font-size:12px!important;line-height:1.15}
 .woodGrid .spotActions{display:grid!important;grid-template-columns:1fr!important;gap:6px!important;margin-top:6px}
@@ -166,3 +166,7 @@
 .requestCodeBtn span{display:block;font-size:13px;margin-left:6px}
 .emailRequestBtn{background:#1778d8;color:#fff}
 .snapRequestBtn{background:#fffc00;color:#111}
+
+@media(max-width:390px){
+  .woodGrid .speciesLine{font-size:16px!important;line-height:1.2!important}
+}
