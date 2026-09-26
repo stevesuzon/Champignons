@@ -9,6 +9,7 @@ var state={gps:null,photo:null,analysis:null,stream:null,accessToken:'',spots:[]
 var FREE_UNTIL_CACHE_KEY='carplay_contest_app_free_until_ms';
 var ONBOARDING_KEY='champignons_onboarding_v5';
 var CAR_POSITION_KEY='champignons_car_position_v1';
+var USER_POSITION_KEY='champignons_user_position_v1';
 function cachedTrialUntil(){var ms=0;try{ms=Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY)||0)}catch(_){}return Number.isFinite(ms)&&ms>0?ms:0}
 async function syncTrialUntil(){var cached=cachedTrialUntil();try{var r=await fetch(API_BASE+'/api/contest/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}),j=await r.json();var ms=Number(j&&j.appFreeUntil||0);if(r.ok&&ms>0){try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(ms))}catch(_){}return ms}}catch(_){}return cached}
 function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
@@ -32,29 +33,38 @@ function saveCarPosition(p){try{localStorage.setItem(CAR_POSITION_KEY,JSON.strin
 function refreshCarButton(){var b=$('carBtn'),r=$('resetCarBtn'),st=$('carStatus'),p=carPosition();if(!b)return;if(p){b.innerHTML='🚗 RETOURNER À L’AUTO<span>Navigation vers la position exacte enregistrée</span>';if(r)r.classList.remove('hidden');if(st)st.textContent='✅ Voiture enregistrée'+(p.accuracy?' — précision '+Math.round(Number(p.accuracy))+' m':'')+'.'}else{b.innerHTML='🚗 ENREGISTRER LA VOITURE<span>Mémorise la position GPS exacte de votre auto</span>';if(r)r.classList.add('hidden');if(st)st.textContent='Aucun emplacement de voiture enregistré.'}}
 async function recordCarPosition(){var b=$('carBtn');if(b)b.disabled=true;status('carStatus','Recherche de la position GPS exacte de la voiture…');try{var g=await preciseGps(),label='';try{var rr=await fetch(API_BASE+'/api/place-address?lat='+encodeURIComponent(g.lat)+'&lon='+encodeURIComponent(g.lon),{cache:'no-store'}),jj=await rr.json();if(rr.ok)label=clean(jj.address||jj.name||'')}catch(_){}saveCarPosition({lat:g.lat,lon:g.lon,accuracy:g.accuracy,label:label,capturedAt:Date.now()});status('carStatus','✅ Voiture enregistrée'+(label?' — '+label:'')+' — précision '+Math.round(g.accuracy)+' m.','ok')}catch(e){status('carStatus','❌ '+(e.message||'Impossible d’enregistrer la voiture.'),'bad')}finally{if(b)b.disabled=false}}
 async function carAction(){var p=carPosition();if(p){nav(Number(p.lat),Number(p.lon));return}await recordCarPosition()}
-async function updateCurrentPosition(force){
-  var st=$('currentPositionStatus'),btn=$('refreshCurrentPositionBtn'),now=Date.now();
-  if(!force&&state.currentGps&&now-Number(state.currentGps.capturedAt||0)<120000)return state.currentGps;
-  if(btn)btn.disabled=true;
-  if(st)st.textContent='📍 Recherche de votre position actuelle…';
+function savedUserPosition(){try{var p=JSON.parse(localStorage.getItem(USER_POSITION_KEY)||'null');return p&&Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon))?p:null}catch(_){return null}}
+function refreshSavedPositionPanel(){
+  var p=savedUserPosition(),st=$('savedPositionStatus'),b=$('saveMyPositionBtn'),mv=$('positionMenuValue');
+  if(p){
+    if(st)st.innerHTML='<b>✅ POSITION BIEN SAUVEGARDÉE</b><span>'+esc(p.address||'Adresse non trouvée')+'</span><small>Précision GPS : '+Math.round(Number(p.accuracy||0))+' m</small>';
+    if(b)b.textContent='🔄 ACTUALISER MA POSITION';
+    if(mv)mv.textContent='Sauvegardée ›';
+    state.currentGps={lat:Number(p.lat),lon:Number(p.lon),accuracy:Number(p.accuracy||0),capturedAt:Number(p.savedAt||0)};
+  }else{
+    if(st)st.innerHTML='<b>Aucune position sauvegardée.</b><span>Appuyez sur le bouton ci-dessous pour enregistrer votre position GPS.</span>';
+    if(b)b.textContent='📍 SAUVEGARDER MA POSITION';
+    if(mv)mv.textContent='À enregistrer ›';
+  }
+}
+async function saveOrUpdateMyPosition(){
+  var old=savedUserPosition(),b=$('saveMyPositionBtn');
+  if(old&&!confirm('Voulez-vous remplacer votre position sauvegardée par votre position actuelle ?'))return;
+  if(b)b.disabled=true;
+  status('savedPositionStatus','📍 Recherche de votre position GPS précise…');
   try{
-    if(!navigator.geolocation)throw new Error('GPS indisponible');
-    var g=await new Promise(function(resolve,reject){
-      navigator.geolocation.getCurrentPosition(function(p){resolve({lat:p.coords.latitude,lon:p.coords.longitude,accuracy:Number(p.coords.accuracy||9999),capturedAt:Date.now()})},function(e){reject(new Error(e&&e.code===1?'Autorisez la localisation pour afficher votre position actuelle.':(e&&e.message||'Localisation impossible.')))},{enableHighAccuracy:true,maximumAge:0,timeout:15000})
-    });
-    state.currentGps=g;
-    var label='';
+    var g=await preciseGps(),address='';
     try{
       var rr=await fetch(API_BASE+'/api/place-address?lat='+encodeURIComponent(g.lat)+'&lon='+encodeURIComponent(g.lon),{cache:'no-store'}),jj=await rr.json();
-      if(rr.ok)label=clean(jj.city||jj.address||jj.name||'')
+      if(rr.ok)address=clean(jj.fullAddress||jj.address||jj.name||jj.city||'')
     }catch(_){}
-    if(st)st.innerHTML='📍 <b>Position actuelle'+(label?' : '+esc(label):'')+'</b><span>Précision GPS : '+Math.round(g.accuracy)+' m</span>';
-    return g
+    var p={lat:g.lat,lon:g.lon,accuracy:g.accuracy,address:address||'Position GPS sauvegardée',savedAt:Date.now()};
+    localStorage.setItem(USER_POSITION_KEY,JSON.stringify(p));
+    state.currentGps={lat:p.lat,lon:p.lon,accuracy:p.accuracy,capturedAt:p.savedAt};
+    refreshSavedPositionPanel();
   }catch(e){
-    state.currentGps=null;
-    if(st)st.innerHTML='📍 <b>Position actuelle indisponible</b><span>'+esc(e.message||'Activez la localisation du téléphone.')+'</span>';
-    return null
-  }finally{if(btn)btn.disabled=false}
+    status('savedPositionStatus','❌ '+(e.message||'Impossible de sauvegarder votre position.'),'bad')
+  }finally{if(b)b.disabled=false}
 }
 function fmtDate(ms){try{return new Date(Number(ms)).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch(_){return ''}}
 function guide(v){var raw=clean(v),parts=raw.split(/\s*(?:,|;|\+)\s*/).filter(Boolean);if(parts.length>1)return{category:'Plusieurs champignons',season:'Selon les variétés',habitat:'Plusieurs variétés ont été signalées dans ce bois. Consultez la liste de la fiche.'};var n=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();if(/cepe|bolet/.test(n))return{category:'Cèpes / Bolets',season:'Juin à novembre',habitat:'Chênes, hêtres, châtaigniers et conifères ; sols moussus après la pluie.'};if(/girolle|chanterelle/.test(n))return{category:'Girolles / Chanterelles',season:'Juin à novembre',habitat:'Sous feuillus ou conifères, sols moussus et acides, souvent en groupes.'};if(/trompette/.test(n))return{category:'Trompettes',season:'Août à novembre',habitat:'Sous hêtres et chênes, sols frais, humides et ombragés.'};if(/morille/.test(n))return{category:'Morilles',season:'Mars à mai',habitat:'Lisières, frênes, vieux vergers et certains sols calcaires ou remués.'};if(/pied.*mouton|hydne/.test(n))return{category:'Pieds-de-mouton',season:'Août à décembre',habitat:'Bois de feuillus et conifères, sous feuilles ou aiguilles.'};if(/coulemelle|lepiote/.test(n))return{category:'Coulemelles / Lépiotes',season:'Juillet à novembre',habitat:'Prairies, clairières, lisières et bords de chemins herbeux.'};if(/lactaire/.test(n))return{category:'Lactaires',season:'Juillet à novembre',habitat:'Pins, épicéas, bouleaux ou autres feuillus selon l’espèce.'};if(/russule/.test(n))return{category:'Russules',season:'Juin à novembre',habitat:'Bois de feuillus et de conifères ; habitat variable selon l’espèce.'};if(/amanite/.test(n))return{category:'Amanites',season:'Juin à novembre',habitat:'Bois et lisières sous divers arbres. Identification particulièrement délicate.'};if(/agaric/.test(n))return{category:'Agarics',season:'Mai à novembre',habitat:'Prairies, pelouses, lisières ou sous-bois selon l’espèce.'};if(/coprin/.test(n))return{category:'Coprins',season:'Printemps à automne',habitat:'Pelouses, bords de chemins et terrains riches en matière organique.'};return{category:'Autres champignons',season:'Selon l’espèce et la météo',habitat:'Habitat variable selon l’espèce.'}}
@@ -98,7 +108,7 @@ function writeLocalSpots(rows){try{localStorage.setItem(LOCAL_SPOTS_KEY,JSON.str
 function saveLocalSpot(spot){var rows=loadLocalSpots().filter(function(x){return String(x.id)!==String(spot.id)});rows.unshift(spot);writeLocalSpots(rows)}
 function updateLocalSpot(spot){if(!spot||!spot.id)return;var rows=loadLocalSpots(),found=false;rows=rows.map(function(x){if(String(x.id)===String(spot.id)){found=true;return Object.assign({},x,spot)}return x});if(!found)rows.unshift(spot);writeLocalSpots(rows)}
 function removeLocalSpot(id){writeLocalSpots(loadLocalSpots().filter(function(x){return String(x.id)!==String(id)}))}
-function liveReference(){return state.currentGps&&Number.isFinite(Number(state.currentGps.lat))&&Number.isFinite(Number(state.currentGps.lon))?state.currentGps:null}
+function liveReference(){var p=savedUserPosition();return p&&Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon))?p:null}
 function localDistanceKm(s){var p=liveReference(),lat=Number(s&&s.latitude),lon=Number(s&&s.longitude);if(!p||!Number.isFinite(lat)||!Number.isFinite(lon))return null;return haversine(Number(p.lat),Number(p.lon),lat,lon)/1000}
 function applyLiveDistances(rows){return (rows||[]).map(function(s){var x=Object.assign({},s),d=localDistanceKm(x);x.distanceKm=d==null?null:Number(d.toFixed(1));return x})}
 function forestProfile(tags){tags=tags||{};var leaf=clean(tags.leaf_type||tags.wood||tags.genus||tags.species||'').toLowerCase();if(/needle|conifer|pin|picea|sapin|abies|cedr/.test(leaf))return{species:'Cèpes des pins, lactaires, chanterelles',photoUrl:'mushroom-coniferes.svg',habitat:'Sous conifères : pins, sapins et épicéas. Variétés possibles à confirmer sur place.'};if(/broad|decidu|ch[eê]ne|quercus|h[eê]tre|fagus|chataign/.test(leaf))return{species:'Cèpes / bolets, girolles, trompettes',photoUrl:'mushroom-feuillus.svg',habitat:'Sous feuillus : chênes, hêtres et châtaigniers. Variétés possibles à confirmer sur place.'};return{species:'Cèpes / bolets, girolles, chanterelles',photoUrl:'mushroom-mixte.svg',habitat:'Forêt mixte ou essence non précisée. Variétés possibles à confirmer sur place.'}}
@@ -142,9 +152,15 @@ async function voteDelete(id){if(!confirm('Demander la suppression de ce bois ? 
 async function searchSpots(mode){
   mode=mode||'nearby';
   var b=mode==='route'?$('routeSpotsBtn'):$('nearbySpotsBtn');if(b)b.disabled=true;
-  status('browseStatus','📍 Recherche de votre position GPS actuelle…');
-  var g=null;
-  try{g=await updateCurrentPosition(false);if(!g)g=await preciseGps();state.currentGps=g}catch(e){state.currentGps=null;status('browseStatus','❌ Activez la localisation pour calculer les kilomètres depuis votre position actuelle.','bad');if(b)b.disabled=false;return}
+  status('browseStatus','📍 Lecture de votre position sauvegardée…');
+  var g=savedUserPosition();
+  if(!g){
+    status('browseStatus','❌ Aucune position sauvegardée. Enregistrez votre position dans Réglages > Ma position.','bad');
+    if(b)b.disabled=false;
+    openMushSettings();openSettingsPanel('positionPanel');
+    return
+  }
+  state.currentGps={lat:Number(g.lat),lon:Number(g.lon),accuracy:Number(g.accuracy||0),capturedAt:Number(g.savedAt||0)};
   var local=loadLocalSpots(),preview=applyLiveDistances(mergeSpots([],local,mode));
   if(mode==='nearby'&&preview.length){renderResults(preview,mode);status('browseStatus','📱 Bois enregistrés localement affichés — synchronisation des autres bois…','ok')}
   else status('browseStatus',mode==='route'?'Calcul des bois sur votre trajet…':'Chargement des bois du plus près au plus loin depuis votre position…');
@@ -158,7 +174,7 @@ async function searchSpots(mode){
       all=mergeReferenceForests(all,refs,mode);
     }
     renderResults(all,mode);
-    status('browseStatus',all.length+' bois affiché'+(all.length>1?'s':'')+(mode==='route'?' — détour maximum 15 km.':' — bois enregistrés + bois cartographiés autour de vous, kilomètres calculés depuis votre position GPS actuelle.'),all.length?'ok':'')
+    status('browseStatus',all.length+' bois affiché'+(all.length>1?'s':'')+(mode==='route'?' — détour maximum 15 km.':' — bois enregistrés + bois cartographiés autour de vous, kilomètres calculés depuis votre position sauvegardée.'),all.length?'ok':'')
   }catch(e){
     var msg=(e&&e.message)||'Recherche impossible.';
     var refs=mode==='nearby'?await discoverPublicForests(g):[];
@@ -227,20 +243,21 @@ function startAccountWatch(){if(accountWatchTimer)clearInterval(accountWatchTime
 async function saveCouteauAccount(){var last=clean($('accountLastName').value),first=clean($('accountFirstName').value),email=clean($('accountEmail').value).toLowerCase();if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('accountLinkStatus','❌ Nom, prénom et adresse e-mail valide sont obligatoires.','bad');return}var x=saveIdentityLocal({lastName:last,firstName:first,email:email}),b=$('saveCouteauAccountBtn');b.disabled=true;status('accountLinkStatus','Enregistrement et liaison avec Couteau Suisse…');try{var sr=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:email}),cache:'no-store'}),sj=await sr.json().catch(function(){return {}});if(sr.ok&&sj&&sj.verified){await fetch(API_BASE+'/api/app-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:identityPlatform(),firstName:first,lastName:last,email:email}),cache:'no-store'}).catch(function(){});status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}var r=await fetch(API_BASE+'/api/app-identity/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:identityPlatform(),firstName:first,lastName:last,email:email}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(!r.ok||!j.ok)throw j;if(j.alreadyVerified){if(j.identity)saveIdentityLocal(j.identity);status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}status('accountLinkStatus','📧 Un e-mail de confirmation Couteau Suisse a été envoyé. Ouvrez-le, confirmez l’adresse e-mail, puis revenez dans Champignons : la liaison se fera automatiquement.','ok');startAccountWatch()}catch(e){var c=e&&e.error||'',m=c==='EMAIL_TROP_RAPIDE'?'Un e-mail a déjà été envoyé récemment. Vérifiez votre boîte mail.':c==='QUOTA_EMAIL_JOURNALIER'?'Envoi d’e-mail momentanément indisponible. Réessayez plus tard.':'Impossible de lier le compte pour le moment.';status('accountLinkStatus','❌ '+m,'bad')}finally{b.disabled=false}}
 function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLastName').value=clean(x.lastName);if($('entryFirstName'))$('entryFirstName').value=clean(x.firstName);if($('entryEmail'))$('entryEmail').value=clean(x.email||localStorage.getItem('carplay_recovery_email')||'')}
 function setEntryGate(open){var g=$('firstEntryGate');if(!g)return;g.classList.toggle('hidden',!open);g.setAttribute('aria-hidden',open?'false':'true')}
-async function finishEntry(identityData){if(identityData)saveIdentityLocal(identityData);try{localStorage.setItem(ONBOARDING_KEY,'1')}catch(_){}setEntryGate(false);await checkAccess();refreshCarButton();updateCurrentPosition(true)}
+async function finishEntry(identityData){if(identityData)saveIdentityLocal(identityData);try{localStorage.setItem(ONBOARDING_KEY,'1')}catch(_){}setEntryGate(false);await checkAccess();refreshCarButton();refreshSavedPositionPanel()}
 var entryWatchTimer=null;
 function watchEntryVerification(){if(entryWatchTimer)clearInterval(entryWatchTimer);var left=75;entryWatchTimer=setInterval(async function(){left--;var x=identity()||{};try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.verified){clearInterval(entryWatchTimer);entryWatchTimer=null;status('entryStatus','✅ Compte Couteau Suisse confirmé. Connexion à Champignons enregistrée.','ok');setTimeout(function(){finishEntry(j.identity||x)},700);return}}catch(_){}if(left<=0){clearInterval(entryWatchTimer);entryWatchTimer=null}},4000)}
 async function submitFirstEntry(){var last=clean($('entryLastName').value),first=clean($('entryFirstName').value),email=clean($('entryEmail').value).toLowerCase(),b=$('entryContinueBtn');if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('entryStatus','❌ Nom, prénom et adresse e-mail valide sont obligatoires.','bad');return}saveIdentityLocal({lastName:last,firstName:first,email:email});$('entryNeedCouteau').classList.add('hidden');b.disabled=true;status('entryStatus','Vérification de votre compte Couteau Suisse…');try{var sr=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:email}),cache:'no-store'}),sj=await sr.json().catch(function(){return {}});if(sr.ok&&sj&&sj.verified){await fetch(API_BASE+'/api/app-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:'champignons-'+identityPlatform(),firstName:first,lastName:last,email:email,sourceApp:'champignons',appName:'Champignons',notifyEmail:true}),cache:'no-store'}).catch(function(){});status('entryStatus','✅ Compte Couteau Suisse reconnu. Vous êtes connecté à Champignons.','ok');await finishEntry(sj.identity||{lastName:last,firstName:first,email:email});return}var r=await fetch(API_BASE+'/api/app-identity/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:'champignons-'+identityPlatform(),firstName:first,lastName:last,email:email,sourceApp:'champignons',appName:'Champignons'}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.alreadyVerified){status('entryStatus','✅ Compte Couteau Suisse reconnu. Vous êtes connecté à Champignons.','ok');await finishEntry(j.identity||{lastName:last,firstName:first,email:email});return}if(!r.ok||!j.ok)throw j;$('entryNeedCouteau').classList.remove('hidden');status('entryStatus','📧 Un e-mail de confirmation a été demandé depuis Champignons. Confirmez-le. Si vous n’avez pas encore de compte Couteau Suisse, inscrivez-vous d’abord avec le bouton ci-dessous.','ok');watchEntryVerification()}catch(e){$('entryNeedCouteau').classList.remove('hidden');status('entryStatus','Compte Couteau Suisse non trouvé ou non confirmé. Inscrivez-vous d’abord sur Couteau Suisse, puis revenez ici.','bad')}finally{b.disabled=false}}
 async function startEntryGate(){fillEntryFields();if($('openCouteauSuisseBtn'))$('openCouteauSuisseBtn').href=COUTEAU_SUISSE_URL;var done=false;try{done=localStorage.getItem(ONBOARDING_KEY)==='1'}catch(_){}if(done&&identityComplete()){setEntryGate(false);checkAccess();return}setEntryGate(true)}
-function closeAllSettingsPanels(){['accountPanel','gpsPanel','membersPanel'].forEach(function(id){var e=$(id);if(e)e.classList.add('hidden')});var m=document.querySelector('.settingsMenu');if(m)m.classList.remove('hidden')}
-function openSettingsPanel(id){closeAllSettingsPanels();var m=document.querySelector('.settingsMenu');if(m)m.classList.add('hidden');var e=$(id);if(e)e.classList.remove('hidden');if(id==='accountPanel')refreshAccountPanel();if(id==='gpsPanel')refreshGpsPref();if(id==='membersPanel')loadMembers()}
+function closeAllSettingsPanels(){['accountPanel','positionPanel','gpsPanel','membersPanel'].forEach(function(id){var e=$(id);if(e)e.classList.add('hidden')});var m=document.querySelector('.settingsMenu');if(m)m.classList.remove('hidden')}
+function openSettingsPanel(id){closeAllSettingsPanels();var m=document.querySelector('.settingsMenu');if(m)m.classList.add('hidden');var e=$(id);if(e)e.classList.remove('hidden');if(id==='accountPanel')refreshAccountPanel();if(id==='positionPanel')refreshSavedPositionPanel();if(id==='gpsPanel')refreshGpsPref();if(id==='membersPanel')loadMembers()}
 async function refreshAccountPanel(){fillAccountFields();var x=identity()||{},card=$('accountConfirmedCard'),edit=$('accountEditArea');if(!identityComplete(x)){if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Renseignez vos coordonnées Couteau Suisse.');return}var verified=false;try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});verified=!!(r.ok&&j&&j.verified);if(verified&&j.identity)x=saveIdentityLocal(j.identity)}catch(_){}if(verified){if(card)card.classList.remove('hidden');if(edit)edit.classList.add('hidden');if($('confirmedAccountName'))$('confirmedAccountName').textContent=(clean(x.firstName)+' '+clean(x.lastName)).trim();if($('confirmedAccountEmail'))$('confirmedAccountEmail').textContent=clean(x.email);status('accountLinkStatus','✅ Compte confirmé et lié.','ok')}else{if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Coordonnées enregistrées. Confirmation Couteau Suisse en attente.')}} 
 async function loadMembers(){var list=$('membersList');if(list)list.innerHTML='';status('membersStatus','Chargement des personnes inscrites…');var x=identity()||{};try{var r=await fetch(API_BASE+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.ok&&Array.isArray(j.members)){var rows=j.members;if(list)list.innerHTML=rows.length?rows.map(function(m){var name=(clean(m.firstName)+' '+clean(m.lastName)).trim()||clean(m.name)||'Membre Champignons';return '<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(name)+'</b><small>Inscrit à Champignons</small></div></div>'}).join(''):'<div class="empty">Aucune autre personne inscrite.</div>';status('membersStatus',rows.length+' personne'+(rows.length>1?'s':'')+' inscrite'+(rows.length>1?'s':'')+'.','ok');return}}catch(_){}var selfName=(clean(x.firstName)+' '+clean(x.lastName)).trim();if(list&&selfName)list.innerHTML='<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(selfName)+'</b><small>Compte Champignons confirmé sur ce téléphone</small></div></div>';status('membersStatus','La liste complète des inscrits sera affichée dès que le serveur Champignons la fournit. Votre compte confirmé est affiché ci-dessous.',selfName?'ok':'bad')}
-function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref()}
+function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref();refreshSavedPositionPanel()}
 function closeMushSettings(){var x=$('mushSettings');x.classList.add('hidden');x.setAttribute('aria-hidden','true')}
 if($('mushSettingsBtn'))$('mushSettingsBtn').onclick=openMushSettings;
 if($('closeMushSettings'))$('closeMushSettings').onclick=closeMushSettings;
 if($('openAccountPanelBtn'))$('openAccountPanelBtn').onclick=function(){openSettingsPanel('accountPanel')};
+if($('openPositionPanelBtn'))$('openPositionPanelBtn').onclick=function(){openSettingsPanel('positionPanel')};
 if($('openGpsPanelBtn'))$('openGpsPanelBtn').onclick=function(){openSettingsPanel('gpsPanel')};
 if($('openMembersPanelBtn'))$('openMembersPanelBtn').onclick=function(){openSettingsPanel('membersPanel')};
 if($('refreshMembersBtn'))$('refreshMembersBtn').onclick=loadMembers;
@@ -249,12 +266,12 @@ if($('saveCouteauAccountBtn'))$('saveCouteauAccountBtn').onclick=saveCouteauAcco
 if($('entryContinueBtn'))$('entryContinueBtn').onclick=submitFirstEntry;
 if($('carBtn'))$('carBtn').onclick=carAction;
 if($('resetCarBtn'))$('resetCarBtn').onclick=recordCarPosition;
-if($('refreshCurrentPositionBtn'))$('refreshCurrentPositionBtn').onclick=function(){updateCurrentPosition(true)};
+if($('saveMyPositionBtn'))$('saveMyPositionBtn').onclick=saveOrUpdateMyPosition;
 if($('installAppBtn'))$('installAppBtn').onclick=installStandalone;
 if($('installFromSettingsBtn'))$('installFromSettingsBtn').onclick=installStandalone;
 if($('closeInstallHelp'))$('closeInstallHelp').onclick=function(){$('installHelp').classList.add('hidden')};
 Array.from(document.querySelectorAll('[data-gps]')).forEach(function(b){b.onclick=function(){localStorage.setItem('gps_pref',b.dataset.gps);refreshGpsPref()}});
 function refreshInstallButton(){var b=$('installAppBtn');if(!b)return;b.textContent=isStandaloneApp()?'INSTALLÉE':'INSTALLER'}
 window.addEventListener('appinstalled',refreshInstallButton);
-window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){if(identityComplete())refreshAccountLinkStatus(true);updateCurrentPosition(false)}});fillAccountFields();refreshInstallButton();refreshCarButton();show('homeView');updateCurrentPosition(true);startEntryGate();
+window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&identityComplete())refreshAccountLinkStatus(true)});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();show('homeView');startEntryGate();
 })();
