@@ -166,17 +166,15 @@ function readForestCache(g){
   }catch(_){return null}
 }
 function writeForestCache(g,rows){try{localStorage.setItem(FOREST_CACHE_KEY,JSON.stringify({lat:Number(g.lat),lon:Number(g.lon),ts:Date.now(),rows:(rows||[]).slice(0,160)}))}catch(_){}}
-async function discoverPublicForests(g){
+async function fetchForestsRadius(g,radius,limit){
   if(!g||!Number.isFinite(Number(g.lat))||!Number.isFinite(Number(g.lon)))return[];
-  var cached=readForestCache(g);if(cached&&cached.length)return cached;
-  var lat=Number(g.lat),lon=Number(g.lon),latD=1.38,cos=Math.max(.25,Math.cos(lat*Math.PI/180)),lonD=1.38/cos;
-  var south=(lat-latD).toFixed(5),west=(lon-lonD).toFixed(5),north=(lat+latD).toFixed(5),east=(lon+lonD).toFixed(5);
-  var q='[out:json][timeout:14];(nwr["name"]["landuse"="forest"]('+south+','+west+','+north+','+east+');nwr["name"]["natural"="wood"]('+south+','+west+','+north+','+east+'););out center tags 260;';
+  var lat=Number(g.lat),lon=Number(g.lon);
+  var q='[out:json][timeout:12];(way(around:'+radius+','+lat+','+lon+')[name][landuse=forest];relation(around:'+radius+','+lat+','+lon+')[name][landuse=forest];way(around:'+radius+','+lat+','+lon+')[name][natural=wood];relation(around:'+radius+','+lat+','+lon+')[name][natural=wood];);out center tags '+limit+';';
   var endpoints=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
   for(var ei=0;ei<endpoints.length;ei++){
     try{
-      var ctrl=new AbortController(),timer=setTimeout(function(){ctrl.abort()},16000);
-      var r=await fetch(endpoints[ei]+'?data='+encodeURIComponent(q),{headers:{'accept':'application/json'},cache:'no-store',signal:ctrl.signal});
+      var ctrl=new AbortController(),timer=setTimeout(function(){ctrl.abort()},14000);
+      var r=await fetch(endpoints[ei]+'?data='+encodeURIComponent(q),{headers:{accept:'application/json'},cache:'no-store',signal:ctrl.signal});
       clearTimeout(timer);
       if(!r.ok)continue;
       var j=await r.json(),seen=new Set(),rows=[];
@@ -185,15 +183,43 @@ async function discoverPublicForests(g){
         var elat=Number(e.lat!=null?e.lat:e.center&&e.center.lat),elon=Number(e.lon!=null?e.lon:e.center&&e.center.lon);
         if(!Number.isFinite(elat)||!Number.isFinite(elon))return;
         var d=haversine(lat,lon,elat,elon)/1000;if(d>150)return;
-        var key=normSpecies(name);if(seen.has(key))return;seen.add(key);
+        var key=normSpecies(name)+'|'+elat.toFixed(3)+'|'+elon.toFixed(3);if(seen.has(key))return;seen.add(key);
         var p=forestProfile(t),privacy=forestPrivacy(t);
         rows.push({id:'osm-'+e.type+'-'+e.id,woodName:name,city:clean(t['addr:city']||t['addr:place']||t['is_in:city']||''),latitude:elat,longitude:elon,distanceKm:Number(d.toFixed(1)),species:p.species,habitat:p.habitat,season:'Selon météo, sol et essences',category:'Bois / forêt cartographié',source:'osm',isReferenceForest:true,isPrivate:privacy==='private'?true:privacy==='public'?false:null,privacyStatus:privacy,photoUrl:p.photoUrl,note:'Bois cartographié. Les champignons indiqués sont des possibilités liées au type de forêt, pas une présence garantie.'});
       });
-      rows=rows.sort(function(a,b){return a.distanceKm-b.distanceKm}).slice(0,160);
-      if(rows.length){writeForestCache(g,rows);return rows}
+      return rows.sort(function(a,b){return a.distanceKm-b.distanceKm})
     }catch(_){}
   }
-  return cached||[]
+  return[]
+}
+function dedupeForestRows(rows){
+  var map=new Map();
+  (rows||[]).forEach(function(x){
+    var key=normSpecies(clean(x.woodName||''))+'|'+Number(x.latitude).toFixed(3)+'|'+Number(x.longitude).toFixed(3);
+    if(!map.has(key))map.set(key,x)
+  });
+  return Array.from(map.values()).sort(function(a,b){return Number(a.distanceKm||9999)-Number(b.distanceKm||9999)})
+}
+async function discoverPublicForests(g){
+  if(!g||!Number.isFinite(Number(g.lat))||!Number.isFinite(Number(g.lon)))return[];
+  var cached=readForestCache(g);
+  if(cached&&cached.length)return keepNearbyWoods(cached);
+  var near=await fetchForestsRadius(g,60000,120);
+  if(near.length){writeForestCache(g,near);return near}
+  var wider=await fetchForestsRadius(g,100000,140);
+  if(wider.length){writeForestCache(g,wider);return wider}
+  return[]
+}
+async function expandPublicForests(g,baseRows,onUpdate){
+  try{
+    var rows=dedupeForestRows(baseRows||[]);
+    var r100=await fetchForestsRadius(g,100000,180);
+    rows=dedupeForestRows(rows.concat(r100));
+    if(rows.length&&typeof onUpdate==='function')onUpdate(rows);
+    var r150=await fetchForestsRadius(g,150000,220);
+    rows=keepNearbyWoods(dedupeForestRows(rows.concat(r150)));
+    if(rows.length){writeForestCache(g,rows);if(typeof onUpdate==='function')onUpdate(rows)}
+  }catch(_){}
 }
 function mergeReferenceForests(rows,refs,mode){
   var map=new Map();
@@ -216,7 +242,7 @@ async function saveEdit(){var id=$('editSpotId').value,species=clean($('editSpec
 async function voteDelete(id){if(!confirm('Demander la suppression de ce bois ? Il sera effacé après 5 demandes différentes.'))return;try{var r=await fetch(API_BASE+'/api/mushrooms/manage',{method:'POST',headers:authHeaders(),body:JSON.stringify({action:'vote_delete',id:id}),cache:'no-store'}),j=await r.json();if(!r.ok||!j.ok)throw j;if(j.deleted){removeLocalSpot(id);alert('La fiche a reçu 5 demandes différentes et a été supprimée.')}else alert('Demande enregistrée : '+j.votes+'/5.');await searchSpots(state.lastMode)}catch(e){alert('La demande n’a pas pu être enregistrée.')}}
 async function searchSpots(mode){
   mode=mode||'nearby';
-  var b=mode==='route'?$('routeSpotsBtn'):$('nearbySpotsBtn');if(b)b.disabled=true;
+  var b=$('nearbySpotsBtn');if(b)b.disabled=true;
   status('browseStatus','📍 Lecture de votre position sauvegardée…');
   var g=savedUserPosition();
   if(!g){
@@ -226,26 +252,48 @@ async function searchSpots(mode){
     return
   }
   state.currentGps={lat:Number(g.lat),lon:Number(g.lon),accuracy:Number(g.accuracy||0),capturedAt:Number(g.savedAt||0)};
-  var local=loadLocalSpots(),preview=keepNearbyWoods(applyLiveDistances(mergeSpots([],local,mode)));
-  if(mode==='nearby'&&preview.length){renderResults(preview,mode);status('browseStatus','📱 Bois enregistrés localement affichés — synchronisation des autres bois…','ok')}
-  else status('browseStatus',mode==='route'?'Calcul des bois sur votre trajet…':'Chargement des bois du plus près au plus loin depuis votre position…');
-  var refsPromise=mode==='nearby'?discoverPublicForests(g):Promise.resolve([]);
+  var local=loadLocalSpots(),localRows=keepNearbyWoods(applyLiveDistances(mergeSpots([],local,mode)));
+  if(localRows.length){renderResults(localRows,mode);status('browseStatus','Chargement des autres bois…','ok')}
+  else status('browseStatus','Chargement des bois du plus près au plus loin…');
+
+  var payload={mode:'nearby',currentLat:g.lat,currentLon:g.lon,latitude:g.lat,longitude:g.lon};
+  var serverPromise=fetch(API_BASE+'/api/mushrooms/search',{method:'POST',headers:authHeaders(),body:JSON.stringify(payload),cache:'no-store'})
+    .then(async function(r){var j=await r.json();if(!r.ok||!j.ok)throw j;return j.spots||[]})
+    .catch(function(){return[]});
+  var refsPromise=discoverPublicForests(g);
+
   try{
-    var payload={mode:mode,currentLat:g.lat,currentLon:g.lon,latitude:g.lat,longitude:g.lon};
-    var serverPromise=fetch(API_BASE+'/api/mushrooms/search',{method:'POST',headers:authHeaders(),body:JSON.stringify(payload),cache:'no-store'}).then(async function(r){var j=await r.json();if(!r.ok||!j.ok)throw j;return j});
-    var results=await Promise.all([serverPromise,refsPromise]),j=results[0],refs=results[1];
-    var all=keepNearbyWoods(applyLiveDistances(mergeSpots(j.spots||[],local,mode)));
-    if(mode==='nearby'){
-      all=keepNearbyWoods(mergeReferenceForests(all,refs,mode));
-    }
+    var first=await Promise.all([serverPromise,refsPromise]),serverRows=first[0],refs=first[1];
+    var all=keepNearbyWoods(applyLiveDistances(mergeSpots(serverRows,local,mode)));
+    all=keepNearbyWoods(mergeReferenceForests(all,refs,mode));
     renderResults(all,mode);
-    status('browseStatus',all.length?all.length+' bois affiché'+(all.length>1?'s':'')+' — kilomètres calculés depuis votre position sauvegardée.':'Recherche terminée : aucun bois chargé pour le moment. Votre position sauvegardée est bien prise en compte.',all.length?'ok':'bad')
+    status('browseStatus',all.length?all.length+' bois affiché'+(all.length>1?'s':'')+' — du plus près au plus loin.':'Recherche en cours…','ok');
+
+    expandPublicForests(g,refs,function(expanded){
+      var updated=keepNearbyWoods(applyLiveDistances(mergeSpots(serverRows,local,mode)));
+      updated=keepNearbyWoods(mergeReferenceForests(updated,expanded,mode));
+      renderResults(updated,mode);
+      status('browseStatus',updated.length+' bois affiché'+(updated.length>1?'s':'')+' — du plus près au plus loin.','ok')
+    });
+
+    if(!all.length){
+      var emergency=await fetchForestsRadius(g,30000,100);
+      if(emergency.length){
+        var fallback=keepNearbyWoods(mergeReferenceForests(localRows,emergency,mode));
+        renderResults(fallback,mode);
+        status('browseStatus',fallback.length+' bois affiché'+(fallback.length>1?'s':'')+' — chargement des autres bois en cours.','ok');
+        expandPublicForests(g,emergency,function(expanded){
+          var updated=keepNearbyWoods(mergeReferenceForests(localRows,expanded,mode));
+          renderResults(updated,mode);
+          status('browseStatus',updated.length+' bois affiché'+(updated.length>1?'s':'')+' — du plus près au plus loin.','ok')
+        })
+      }else{
+        status('browseStatus','Aucun bois chargé pour le moment. Appuyez sur Actualiser les bois pour réessayer.','bad')
+      }
+    }
   }catch(e){
-    var msg=(e&&e.message)||'Recherche impossible.';
-    var refs=mode==='nearby'?await refsPromise:[];
-    var fallback=keepNearbyWoods(mergeReferenceForests(preview,refs,mode));
-    if(fallback.length){renderResults(fallback,mode);status('browseStatus','🗺️ Bois enregistrés et bois cartographiés affichés. Synchronisation serveur Champignons indisponible.','bad')}
-    else{status('browseStatus','❌ '+msg,'bad');$('spotResults').innerHTML=''}
+    if(localRows.length){renderResults(localRows,mode);status('browseStatus','Bois enregistrés affichés. Actualisez pour charger les autres bois.','bad')}
+    else{status('browseStatus','Aucun bois chargé pour le moment. Appuyez sur Actualiser les bois pour réessayer.','bad');$('spotResults').innerHTML='<div class="empty">Chargement indisponible pour le moment.</div>'}
   }finally{if(b)b.disabled=false}
 }
 
