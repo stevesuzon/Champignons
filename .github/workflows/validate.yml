@@ -1,0 +1,22 @@
+name: Vérifier Champignons
+on:
+  push:
+    branches: [main]
+    paths:
+      - "index.html"
+      - "champignons.js"
+      - "champignons.css"
+      - "config.js"
+      - "sw.js"
+      - ".github/workflows/validate.yml"
+  workflow_dispatch:
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Vérifier le JavaScript
+        run: |
+          node --check champignons.js
+          node --check config.js
+          node --check sw.js
