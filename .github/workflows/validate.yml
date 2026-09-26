@@ -8,6 +8,8 @@ on:
       - "champignons.css"
       - "config.js"
       - "sw.js"
+      - "worker.js"
+      - "wrangler.jsonc"
       - ".github/workflows/validate.yml"
   workflow_dispatch:
 jobs:
@@ -20,3 +22,4 @@ jobs:
           node --check champignons.js
           node --check config.js
           node --check sw.js
+          node --check worker.js
