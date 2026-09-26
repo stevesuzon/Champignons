@@ -1,5 +1,5 @@
-const CACHE='champignons-standalone-v34';
-const SHELL=['./','index.html','champignons.css?v=34','champignons.js?v=34','config.js?v=34','manifest.webmanifest?v=34','icon.svg'];
+const CACHE='champignons-standalone-v35';
+const SHELL=['./','index.html','champignons.css?v=35','champignons.js?v=35','config.js?v=35','manifest.webmanifest?v=35','icon.svg','photos/cepe-girolle-trompette.jpg?v=35'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('champignons-standalone-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
 self.addEventListener('fetch',event=>{if(event.request.method!=='GET')return;const u=new URL(event.request.url);if(u.origin!==location.origin)return;if(event.request.mode==='navigate'){event.respondWith(fetch(event.request,{cache:'no-store'}).then(r=>{const copy=r.clone();caches.open(CACHE).then(c=>c.put('./',copy)).catch(()=>{});return r}).catch(()=>caches.match('./')));return}event.respondWith(caches.match(event.request).then(cached=>{const fresh=fetch(event.request,{cache:'no-cache'}).then(r=>{if(r&&r.ok){const copy=r.clone();caches.open(CACHE).then(c=>c.put(event.request,copy)).catch(()=>{})}return r}).catch(()=>cached);return cached||fresh}))});
