@@ -86,3 +86,21 @@
 .entryNeedCouteau{margin-top:12px;padding:12px;border:2px solid #e7a631;border-radius:14px;background:#332300}
 .entryNeedCouteau p{margin:0 0 10px;color:#ffe7af;font-weight:850;line-height:1.4}
 @media(max-width:520px){.carHome{min-height:105px!important;font-size:22px!important}.onboardingPanel{padding:14px}.onboardingLogo{width:70px;height:70px;font-size:44px}}
+
+
+/* V6 — réglages compacts */
+.settingsMenu{display:grid;gap:10px}
+.settingsMenuBtn{width:100%;min-height:66px;border:2px solid #40664b;border-radius:15px;background:#102219;color:#fff;padding:12px 15px;display:flex;align-items:center;justify-content:space-between;text-align:left;font-weight:1000;font-size:18px}
+.settingsMenuBtn span{color:#9fe7b4;font-size:16px}
+.subBackBtn{border:0;border-radius:10px;background:#243b2c;color:#fff;padding:9px 12px;font-weight:900;margin-bottom:12px}
+.confirmedAccount{padding:14px;border:2px solid #38d875;border-radius:14px;background:#0c3820;text-align:center;margin:10px 0}
+.confirmedAccount>b{display:block;color:#83f2aa;font-size:20px}
+#confirmedAccountName{font-size:25px;font-weight:1000;margin-top:9px}
+#confirmedAccountEmail{font-size:14px;color:#c5dfce;margin-top:5px;word-break:break-word}
+.linkedAppText{margin-top:12px;padding:9px;border-radius:10px;background:#071a0e;color:#a9ecc0;font-weight:900}
+.settingsLinkedFooter{margin-top:14px;padding:12px;border-radius:14px;background:#071a0e;border:1px solid #31543e;color:#bfe6cb;text-align:center;font-weight:950}
+.membersList{display:grid;gap:8px;margin-top:10px}
+.memberRow{display:flex;align-items:center;gap:10px;padding:10px;border:1px solid #365c43;border-radius:13px;background:#0b1c11}
+.memberAvatar{width:44px;height:44px;display:flex;align-items:center;justify-content:center;border-radius:50%;background:#173923;font-size:24px}
+.memberRow b{display:block;font-size:16px}
+.memberRow small{display:block;margin-top:3px;color:#a9c5b2}
