@@ -162,16 +162,18 @@ function filterPublicWoods(rows){return keepNearbyWoods((rows||[]).filter(functi
 function mergeMyWoods(){var map=new Map();function put(s,kind){if(!s||!s.id)return;var x=Object.assign({},s);if(kind==='shared')x.sharedReceived=true;if(kind==='local')x.localSaved=true;var d=localDistanceKm(x);if(d!=null)x.distanceKm=Number(d.toFixed(1));map.set(String(x.id),Object.assign({},map.get(String(x.id))||{},x))}favoriteWoods().forEach(function(s){put(s,'favorite')});sharedWoods().forEach(function(s){put(s,'shared')});loadLocalSpots().forEach(function(s){put(s,'local')});return sortWoods(Array.from(map.values()),'nearby')}
 function openWoodChooser(){
   state.browseSection='chooser';
-  var pub=$('publicWoodsTab'),mine=$('myWoodsTab'),content=$('browseContent');
+  var pub=$('publicWoodsTab'),mine=$('myWoodsTab'),content=$('browseContent'),choices=document.querySelector('.woodChoiceScreen');
   if(pub)pub.classList.remove('active');
   if(mine)mine.classList.remove('active');
+  if(choices)choices.classList.remove('hidden');
   if(content)content.classList.add('hidden');
   if($('spotResults'))$('spotResults').innerHTML='';
   status('browseStatus','');
 }
 function setBrowseSection(section){
   state.browseSection=section==='my'?'my':'public';
-  var pub=$('publicWoodsTab'),mine=$('myWoodsTab'),refresh=$('nearbySpotsBtn'),title=$('browseModeTitle'),txt=$('browseModeText'),content=$('browseContent');
+  var pub=$('publicWoodsTab'),mine=$('myWoodsTab'),refresh=$('nearbySpotsBtn'),title=$('browseModeTitle'),txt=$('browseModeText'),content=$('browseContent'),choices=document.querySelector('.woodChoiceScreen');
+  if(choices)choices.classList.add('hidden');
   if(content)content.classList.remove('hidden');
   if(pub)pub.classList.toggle('active',state.browseSection==='public');
   if(mine)mine.classList.toggle('active',state.browseSection==='my');
