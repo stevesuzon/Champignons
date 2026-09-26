@@ -137,7 +137,7 @@ function openAddMode(mode){resetAdd();setAddMode(mode);show('addView')}
 function closeSpotPhoto(){var m=$('spotPhotoModal');if(m)m.classList.add('hidden')}
 function openSpotPhoto(src,alt){var m=$('spotPhotoModal');if(!m){m=document.createElement('div');m.id='spotPhotoModal';m.className='spotPhotoModal hidden';m.innerHTML='<button type="button" class="spotPhotoClose" aria-label="Retour">← RETOUR</button><img class="spotPhotoLarge" alt="">';document.body.appendChild(m);m.onclick=function(e){if(e.target===m)closeSpotPhoto()};m.querySelector('.spotPhotoClose').onclick=closeSpotPhoto}var img=m.querySelector('.spotPhotoLarge');img.src=src;img.alt=alt||'';m.classList.remove('hidden')}
 
-var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v1',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
+var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v38',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
 function loadLocalSpots(){try{var a=JSON.parse(localStorage.getItem(LOCAL_SPOTS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
 function writeLocalSpots(rows){try{localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify((rows||[]).slice(0,60)));return true}catch(_){try{var light=(rows||[]).slice(0,40).map(function(s){var x=Object.assign({},s);if(String(x.photoUrl||'').indexOf('data:image/')===0)x.photoUrl='';return x});localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify(light));return true}catch(__){return false}}}
 function saveLocalSpot(spot){var rows=loadLocalSpots().filter(function(x){return String(x.id)!==String(spot.id)});rows.unshift(spot);writeLocalSpots(rows)}
@@ -231,17 +231,29 @@ function referenceMushroomPhotos(species){
     return true
   })
 }
-function generatedCombinationPhoto(species){
+function mushroomAiBase(){
+  var configured=clean(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.PHOTO_AI_BASE||'');
+  if(configured)return configured.replace(/\/+$/,'');
+  return location.origin
+}
+function generatedPhotoFallback(species){
   var n=normSpecies(species||''),hasCepe=/(cepe|bolet)/.test(n),hasGirolle=/girolle/.test(n),hasChanterelle=/chanterelle/.test(n),hasTrompette=/trompette/.test(n),hasLactaire=/lactaire/.test(n);
-  if(hasCepe&&hasGirolle&&hasTrompette)return 'photos/cepe-girolle-trompette.jpg?v=36';
-  if(hasCepe&&hasLactaire&&hasChanterelle)return 'photos/cepes-lactaires-chanterelles.jpg?v=36';
-  if(hasCepe&&(hasGirolle||hasChanterelle)&&!hasTrompette&&!hasLactaire)return 'photos/cepes-girolles-chanterelles.jpg?v=36';
-  return ''
+  if(hasCepe&&hasGirolle&&hasTrompette)return 'photos/cepe-girolle-trompette.jpg?v=38';
+  if(hasCepe&&hasLactaire&&hasChanterelle)return 'photos/cepes-lactaires-chanterelles.jpg?v=38';
+  if(hasCepe&&(hasGirolle||hasChanterelle)&&!hasTrompette&&!hasLactaire)return 'photos/cepes-girolles-chanterelles.jpg?v=38';
+  var refs=referenceMushroomPhotos(species);
+  return refs.length?refs[0].thumb:''
+}
+function generatedCombinationPhoto(species){
+  species=clean(species||'');
+  if(!species||species==='À vérifier')return '';
+  return mushroomAiBase()+'/api/mushroom-photo?species='+encodeURIComponent(species)+'&v=38'
 }
 function singleCombinationPhoto(s,idx){
-  var generated=generatedCombinationPhoto(s&&s.species);
+  var species=clean(s&&s.species||''),generated=generatedCombinationPhoto(species);
   if(!generated)return '';
-  return '<img class="mushSpotPhoto generatedMushPhoto" src="'+generated+'" alt="'+esc('Photo unique réaliste réunissant toutes les variétés indiquées : '+(s.species||'champignons'))+'" loading="'+(idx<6?'eager':'lazy')+'" decoding="async" fetchpriority="'+(idx<6?'high':'low')+'" tabindex="0" role="button">'
+  var fallback=generatedPhotoFallback(species);
+  return '<img class="mushSpotPhoto generatedMushPhoto" src="'+esc(generated)+'" data-fallback="'+esc(fallback)+'" alt="'+esc('Photo réaliste correspondant exactement aux variétés indiquées : '+species)+'" loading="'+(idx<6?'eager':'lazy')+'" decoding="async" fetchpriority="'+(idx<6?'high':'low')+'" tabindex="0" role="button">'
 }
 function referencePhotoGallery(s,idx){
   var one=singleCombinationPhoto(s,idx);
@@ -500,6 +512,14 @@ function renderResults(spots,mode){
     var imgLoad=idx<6?'eager':'lazy',imgPriority=idx<6?'high':'low',comboVisual=singleCombinationPhoto(s,idx),visual=comboVisual|| (s.isReferenceForest?referencePhotoGallery(s,idx):(s.photoUrl?'<img class="mushSpotPhoto" src="'+esc(s.photoUrl)+'" alt="'+esc(s.species)+'" loading="'+imgLoad+'" decoding="async" fetchpriority="'+imgPriority+'" tabindex="0" role="button">':'<div class="woodPlaceholder">🌲<small>BOIS ENREGISTRÉ</small></div>')),privacy=effectivePrivacy(s),woodStatus=privacy==='private'?'<span class="woodStatusPrivate">PRIVÉ</span>':privacy==='public'?'<span class="woodStatusPublic">PUBLIC</span>':'',verifyBtn=privacy==='unknown'?'<button class="verifyWood verifyWoodMain" data-id="'+esc(s.id)+'">VÉRIFIER<br><small>PUBLIC OU PRIVÉ ?</small></button>':'',d=Number(s.distanceKm),distance=Number.isFinite(d)?'<span class="woodDistanceBig">🎯 '+d.toFixed(1)+' km</span>':'<span class="woodDistanceBig">🎯 Distance à calculer</span>',detour=(mode==='route'&&s.detourKm!=null)?'<p class="spotMetaStrong">🛣️ Détour : '+Number(s.detourKm).toFixed(1)+' km</p>':'',fav=isFavoriteWood(s.id),favBtn='<button class="favoriteWood '+(fav?'active':'')+'" data-id="'+esc(s.id)+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'★':'☆')+'</button>',shared=s.sharedReceived?'<span class="sharedWoodBadge">📨 REÇU'+(s.sharedFrom?' DE '+esc(s.sharedFrom).toUpperCase():' D’UN AMI')+'</span>':'',local=s.localSaved?'<span class="localWoodBadge">📱 MON BOIS</span>':'',note=(!s.isReferenceForest&&s.note)?'<p>💬 '+esc(s.note)+'</p>':'';
     return '<article class="spot" data-wood-id="'+esc(s.id)+'">'+favBtn+'<div class="woodCityBig">📍 '+esc(s.city||'Ville en cours de recherche…')+'</div>'+visual+'<div><h4>'+esc(s.woodName||'Bois signalé')+'</h4>'+distance+shared+local+'<div class="woodStatusRow"><span class="woodStatusLabel">🌲 Bois :</span>'+woodStatus+verifyBtn+'</div><div class="woodVarieties"><b>🍄 Variétés dans ce bois :</b><span>'+esc(s.species||'À vérifier')+'</span></div>'+(privacy==='private'?'<p class="privateNotice">⚠️ Bois privé — autorisation du propriétaire obligatoire.</p>':'')+'<p>🗓️ Saison : '+esc(s.season||guide(s.species).season)+'</p><p>🌲 Où chercher : '+esc(s.habitat||guide(s.species).habitat)+'</p>'+(s.createdAt?'<p>📅 Signalé le '+fmtDate(s.createdAt)+'</p>':'')+detour+note+'</div><button class="btn goWood" data-lat="'+Number(s.latitude)+'" data-lon="'+Number(s.longitude)+'">🌲 ALLER À CE BOIS</button><button class="woodShare" data-id="'+esc(s.id)+'">📤 ENVOYER À UNE PERSONNE</button>'+(s.isReferenceForest?'':'<div class="spotActions"><button class="editSpot" data-id="'+esc(s.id)+'">✏️ MODIFIER</button><button class="deleteSpot" data-id="'+esc(s.id)+'">🗑️ DEMANDER LA SUPPRESSION'+(Number(s.deleteVotes||0)?' ('+Number(s.deleteVotes)+'/5)':'')+'</button></div>')+'</article>'
   }).join('');
+  Array.from(c.querySelectorAll('.generatedMushPhoto')).forEach(function(img){
+    img.addEventListener('error',function(){
+      if(img.dataset.fallback&&!img.dataset.fallbackUsed){
+        img.dataset.fallbackUsed='1';
+        img.src=img.dataset.fallback
+      }
+    })
+  });
   Array.from(c.querySelectorAll('.mushSpotPhoto')).forEach(function(img){img.onclick=function(){openSpotPhoto(img.src,img.alt)};img.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();openSpotPhoto(img.src,img.alt)}}});
   Array.from(c.querySelectorAll('.goWood')).forEach(function(b){b.onclick=function(){nav(Number(b.dataset.lat),Number(b.dataset.lon))}});
   Array.from(c.querySelectorAll('.woodShare')).forEach(function(b){b.onclick=function(){shareWood(state.spots.find(function(s){return String(s.id)===String(b.dataset.id)}))}});
