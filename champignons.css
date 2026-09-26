@@ -256,3 +256,42 @@
   color:#dcffe7;
   font-weight:900;
 }
+
+
+/* V27 — écran de choix après « Aller dans un bois » */
+.woodChoiceScreen{
+  display:grid!important;
+  grid-template-columns:1fr 1fr!important;
+  gap:14px!important;
+  margin:14px 0 18px!important;
+}
+.woodChoiceScreen .woodTab{
+  min-height:180px!important;
+  border-radius:24px!important;
+  padding:22px 12px!important;
+  font-size:24px!important;
+  line-height:1.08!important;
+  box-shadow:0 10px 25px #0008;
+}
+.woodChoiceScreen .woodTab span{
+  margin-top:14px!important;
+  font-size:14px!important;
+  line-height:1.25!important;
+}
+.woodChoicePublic{
+  background:linear-gradient(145deg,#167c45,#0e522f)!important;
+  border:3px solid #6ce898!important;
+}
+.woodChoiceMine{
+  background:linear-gradient(145deg,#625015,#3c310d)!important;
+  border:3px solid #efd65c!important;
+}
+.woodChoiceScreen .woodTab.active{
+  transform:translateY(-2px);
+  box-shadow:0 0 0 3px rgba(255,255,255,.12) inset,0 12px 28px #0009;
+}
+@media(max-width:390px){
+  .woodChoiceScreen{gap:9px!important}
+  .woodChoiceScreen .woodTab{min-height:155px!important;font-size:20px!important;padding:16px 8px!important}
+  .woodChoiceScreen .woodTab span{font-size:12px!important}
+}
