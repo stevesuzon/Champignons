@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=29">
+<link rel="manifest" href="manifest.webmanifest?v=30">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=29">
+<link rel="stylesheet" href="champignons.css?v=30">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -28,7 +28,7 @@
   <div class="panel"><h3>2. Photo du champignon</h3><p><b>Prenez la photo du champignon non cueilli, encore en terre.</b> Le GPS de la photo doit correspondre au GPS du bois.</p><button id="cameraBtn" class="btn photoReadyBtn" disabled>📷 PRENDRE LA PHOTO DU CHAMPIGNON</button><div id="cameraBox" class="camera"><video id="cameraVideo" playsinline autoplay muted></video><canvas id="cameraCanvas"></canvas><div class="cameraControls"><button id="captureBtn" class="btn">📸 PRENDRE LA PHOTO</button><button id="closeCameraBtn" class="btn secondary">FERMER</button></div></div><div id="photoStatus" class="status">Localisez d’abord le bois : ce bouton deviendra bleu.</div></div>
   <div id="aiPanel" class="panel aiBox"><h3>3. Reconnaissance du champignon</h3><img id="photoPreview" class="previewImg" alt="Photo prise sur place"><div id="aiStatus" class="status">Analyse…</div><p class="recognitionSafety">ℹ️ La reconnaissance est indicative. Ne décidez jamais de consommer un champignon uniquement à partir de l’application.</p><div id="woodNameField" class="field"><label for="woodNameInput">Nom du bois (facultatif)</label><input id="woodNameInput" maxlength="140" autocomplete="off" placeholder="Ex. Forêt de Huelgoat"></div><div id="privateWoodField" class="woodCategoryField"><b>Catégorie du bois</b><div class="woodTypeChoices"><label class="woodTypeChoice public"><input id="publicWoodInput" name="woodType" type="radio" value="public"> 🌳 Bois public</label><label class="woodTypeChoice private"><input id="privateWoodInput" name="woodType" type="radio" value="private"> 🔒 Bois privé</label></div></div><div class="field"><label for="speciesInput">Quel(s) champignon(s) ?</label><p class="fieldHelp">L’IA ajoute le champignon reconnu. S’il y a plusieurs variétés dans ce bois, ajoutez-les aussi : tapez une virgule puis 1 ou 2 lettres et touchez la proposition.</p><input id="speciesInput" autocomplete="off" placeholder="Ex. Cèpe de Bordeaux, gi…"><button id="addSpeciesBtn" type="button" class="addSpeciesBtn">＋ AJOUTER UNE VARIÉTÉ</button><div id="speciesMatches" class="speciesMatches hidden"></div></div><div id="speciesGuide" class="guide"></div><div id="spotNoteField" class="field"><label for="spotNote">Commentaire (facultatif)</label><textarea id="spotNote" maxlength="500" placeholder="Ex. plusieurs cèpes dans les alentours, sous les chênes…"></textarea></div><button id="saveSpotBtn" class="btn" disabled>✅ ENREGISTRER LE BOIS</button><div id="saveStatus" class="status"></div></div>
 </section>
-<section id="browseView" class="hidden"><div class="topBack browseTopBack"><button id="backHome2">← RETOUR</button><b>🌲 ALLER DANS UN BOIS</b></div>
+<section id="browseView" class="hidden"><div class="topBack browseTopBack"><button id="backHome2">← RETOUR</button><b id="browseHeaderTitle">🌲 ALLER DANS UN BOIS</b></div>
 <div class="woodTabs woodChoiceScreen" role="tablist" aria-label="Choisir les bois">
   <button id="myWoodsTab" class="woodTab woodChoiceMine" type="button">⭐ MES BOIS<span>Mes favoris + les bois partagés par mes amis</span></button>
   <button id="publicWoodsTab" class="woodTab woodChoicePublic" type="button">🌳 BOIS PUBLICS<span>Tous les bois publics à moins de 100 km</span></button>
@@ -90,11 +90,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=29"></script>
-<script src="champignons.js?v=29" defer></script>
+<script src="config.js?v=30"></script>
+<script src="champignons.js?v=30" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=29',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=30',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
