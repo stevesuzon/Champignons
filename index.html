@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=27">
+<link rel="manifest" href="manifest.webmanifest?v=28">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=27">
+<link rel="stylesheet" href="champignons.css?v=28">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -30,8 +30,8 @@
 </section>
 <section id="browseView" class="hidden"><div class="topBack browseTopBack"><button id="backHome2">← RETOUR</button><b>🌲 ALLER DANS UN BOIS</b></div>
 <div class="woodTabs woodChoiceScreen" role="tablist" aria-label="Choisir les bois">
-  <button id="publicWoodsTab" class="woodTab woodChoicePublic" type="button">🌳 BOIS PUBLICS<span>Tous les bois publics à moins de 100 km</span></button>
   <button id="myWoodsTab" class="woodTab woodChoiceMine" type="button">⭐ MES BOIS<span>Mes favoris + les bois partagés par mes amis</span></button>
+  <button id="publicWoodsTab" class="woodTab woodChoicePublic" type="button">🌳 BOIS PUBLICS<span>Tous les bois publics à moins de 100 km</span></button>
 </div>
 <div id="browseContent" class="hidden">
   <div class="panel returnWoodIntro"><h3 id="browseModeTitle">Bois publics</h3><p id="browseModeText"><b>Du plus près au plus loin</b> dans un rayon maximum de 100 km.</p><button id="nearbySpotsBtn" class="btn blue">🔄 ACTUALISER LES BOIS</button><p class="privacyNote">🔒 Ville et distance visibles. Le GPS exact sert uniquement à vous guider vers le bois.</p></div>
@@ -90,11 +90,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=27"></script>
-<script src="champignons.js?v=27" defer></script>
+<script src="config.js?v=28"></script>
+<script src="champignons.js?v=28" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=27',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=28',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
