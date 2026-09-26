@@ -1,10 +1,13 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "champignons",
+  "main": "worker.js",
   "compatibility_date": "2026-09-26",
   "workers_dev": true,
   "assets": {
     "directory": ".",
+    "binding": "ASSETS",
+    "run_worker_first": true,
     "not_found_handling": "single-page-application"
   }
 }
