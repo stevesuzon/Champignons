@@ -137,3 +137,10 @@
   .woodGrid .spot h4{font-size:16px!important}
   .woodGrid .mushSpotPhoto,.woodGrid .spot>img,.woodGrid .woodPlaceholder{height:102px!important}
 }
+
+.currentPositionCard{margin:0 0 12px;padding:11px;border:2px solid #2f9b5a;border-radius:15px;background:#0a1f12}
+.currentPositionStatus{font-size:16px;font-weight:900;line-height:1.25;color:#d9f6e2}
+.currentPositionStatus b{display:block;color:#82efa4;font-size:18px}
+.currentPositionStatus span{display:block;margin-top:4px;color:#b5cfc0;font-size:12px}
+.currentPositionRefresh{width:100%;min-height:38px;margin-top:8px;border:1px solid #4e8060;border-radius:10px;background:#163923;color:#fff;font-weight:900}
+.currentPositionRefresh:disabled{opacity:.5}
