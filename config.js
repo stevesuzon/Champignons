@@ -1,1 +1,1 @@
-window.CHAMPIGNONS_CONFIG={API_BASE:'https://carplay-telephone.appli-suzon.workers.dev',COUTEAU_SUISSE_URL:'https://carplay-telephone.appli-suzon.workers.dev',ADMIN_EMAIL:'appli.suzon@gmail.com'};
+window.CHAMPIGNONS_CONFIG={API_BASE:'https://carplay-telephone.appli-suzon.workers.dev',COUTEAU_SUISSE_URL:'https://carplay-telephone.appli-suzon.workers.dev',PHOTO_AI_BASE:'https://champignons.appli-suzon.workers.dev',ADMIN_EMAIL:'appli.suzon@gmail.com'};
