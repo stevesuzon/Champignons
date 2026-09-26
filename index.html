@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=11">
+<link rel="manifest" href="manifest.webmanifest?v=12">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=11">
+<link rel="stylesheet" href="champignons.css?v=12">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -40,14 +40,13 @@
 </div></div>
 <div id="unlockGate" class="standaloneOverlay unlockOverlay hidden" aria-hidden="true"><div class="standalonePanel unlockPanel">
   <div class="onboardingLogo">🍄</div>
-  <h2 id="unlockTitle">DÉVERROUILLER CHAMPIGNONS</h2>
-  <p id="unlockText" class="onboardingLead">Entrez votre code personnel.</p>
+  <h2>ACTIVER CHAMPIGNONS</h2>
+  <p class="onboardingLead">Votre e-mail est confirmé. Entrez maintenant le <b>code d’activation Champignons</b> fourni par l’administrateur.</p>
   <div class="unlockFields">
-    <input id="unlockCodeInput" type="password" inputmode="numeric" maxlength="4" autocomplete="one-time-code" placeholder="••••">
-    <input id="unlockCodeConfirm" class="hidden" type="password" inputmode="numeric" maxlength="4" autocomplete="off" placeholder="Confirmez le code">
+    <input id="unlockCodeInput" type="text" inputmode="text" maxlength="7" autocapitalize="characters" autocomplete="one-time-code" placeholder="ABC 123">
   </div>
-  <button id="unlockSubmitBtn" class="btn entryContinueBtn">🔓 DÉVERROUILLER</button>
-  <div id="unlockStatus" class="status"></div>
+  <button id="unlockSubmitBtn" class="btn entryContinueBtn">🔓 ACTIVER CHAMPIGNONS</button>
+  <div id="unlockStatus" class="status">Ce code active l’application Champignons.</div>
 </div></div>
 <div id="mushSettings" class="standaloneOverlay hidden" aria-hidden="true"><div class="standalonePanel">
   <button id="closeMushSettings" class="overlayClose" type="button">×</button>
@@ -69,11 +68,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=11"></script>
-<script src="champignons.js?v=11" defer></script>
+<script src="config.js?v=12"></script>
+<script src="champignons.js?v=12" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=11',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=12',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
