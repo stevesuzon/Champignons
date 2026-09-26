@@ -1,4 +1,4 @@
-const CACHE='champignons-standalone-v24';
+const CACHE='champignons-standalone-v25';
 const SHELL=['./','index.html','champignons.css?v=23','champignons.js?v=23','config.js?v=23','manifest.webmanifest?v=23','icon.svg'];
 self.addEventListener('install',event=>{event.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).catch(()=>{}).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',event=>{event.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k.startsWith('champignons-standalone-')&&k!==CACHE).map(k=>caches.delete(k)))).then(()=>self.clients.claim()))});
