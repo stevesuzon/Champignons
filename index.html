@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=33">
+<link rel="manifest" href="manifest.webmanifest?v=34">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=33">
+<link rel="stylesheet" href="champignons.css?v=34">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -93,11 +93,23 @@
     <button id="openPositionPanelBtn" class="settingsMenuBtn">📍 MA POSITION <span id="positionMenuValue">›</span></button>
     <button id="openGpsPanelBtn" class="settingsMenuBtn">🧭 GPS PRÉFÉRÉ <span id="gpsMenuValue">›</span></button>
     <button id="openMembersPanelBtn" class="settingsMenuBtn">👥 PERSONNES INSCRITES <span>›</span></button>
+    <button id="openEdiblePanelBtn" class="settingsMenuBtn">🍽️ VARIÉTÉS CHAMPIGNONS COMESTIBLES <span>›</span></button>
   </div>
   <div id="accountPanel" class="settingBlock accountLinkBlock hidden"><button class="subBackBtn" data-close-panel="accountPanel">← RÉGLAGES</button><h3>👤 Compte</h3><div id="accountConfirmedCard" class="confirmedAccount hidden"><b>✅ COMPTE CONFIRMÉ</b><div id="confirmedAccountName"></div><div id="confirmedAccountEmail"></div><div class="linkedAppText">🍄 Application Champignons liée à Couteau Suisse</div></div><div id="accountEditArea"><p>Entrez le même nom, le même prénom et la même adresse e-mail que dans Couteau Suisse.</p><div class="accountFields"><label for="accountLastName">NOM</label><input id="accountLastName" maxlength="80" autocomplete="family-name" placeholder="Votre nom"><label for="accountFirstName">PRÉNOM</label><input id="accountFirstName" maxlength="80" autocomplete="given-name" placeholder="Votre prénom"><label for="accountEmail">ADRESSE E-MAIL</label><input id="accountEmail" type="email" inputmode="email" maxlength="190" autocomplete="email" placeholder="votre@email.fr"></div><button id="saveCouteauAccountBtn" class="btn accountLinkBtn">🔗 LIER / ENREGISTRER LE COMPTE</button></div><div id="accountLinkStatus" class="status"></div></div>
   <div id="positionPanel" class="settingBlock hidden"><button class="subBackBtn" data-close-panel="positionPanel">← RÉGLAGES</button><h3>📍 Ma position</h3><p>Cette position sert de point de départ pour classer tous les bois du plus près au plus loin.</p><div id="savedPositionStatus" class="savedPositionCard"><b>Aucune position sauvegardée.</b><span>Appuyez sur le bouton ci-dessous pour enregistrer votre position GPS.</span></div><button id="saveMyPositionBtn" class="btn blue">📍 SAUVEGARDER MA POSITION</button></div>
   <div id="gpsPanel" class="settingBlock hidden"><button class="subBackBtn" data-close-panel="gpsPanel">← RÉGLAGES</button><h3>🧭 GPS préféré</h3><div class="gpsChoices"><button type="button" data-gps="Google Maps">Google Maps</button><button type="button" data-gps="Waze">Waze</button><button type="button" data-gps="Plans Apple">Plans Apple</button></div><div id="gpsPrefStatus" class="status"></div></div>
   <div id="membersPanel" class="settingBlock hidden"><button class="subBackBtn" data-close-panel="membersPanel">← RÉGLAGES</button><h3>👥 Personnes inscrites</h3><p>Liste des personnes inscrites dans l’application Champignons.</p><button id="refreshMembersBtn" class="btn blue">🔄 ACTUALISER LA LISTE</button><div id="membersStatus" class="status">Ouvrez la liste pour la charger.</div><div id="membersList" class="membersList"></div></div>
+  <div id="ediblePanel" class="settingBlock ediblePanel hidden">
+  <button class="subBackBtn" data-close-panel="ediblePanel">← RÉGLAGES</button>
+  <h3>🍽️ Variétés de champignons comestibles</h3>
+  <div class="edibleSafety">
+    <b>⚠️ IMPORTANT</b>
+    <span>Les photos et repères servent à apprendre, pas à décider qu’un champignon peut être mangé. Faites toujours confirmer une cueillette par un pharmacien ou un mycologue. Ne consommez jamais un champignon sauvage cru.</span>
+  </div>
+  <input id="edibleSearch" class="edibleSearch" type="search" autocomplete="off" placeholder="🔎 Rechercher un champignon…">
+  <div id="edibleCount" class="status"></div>
+  <div id="edibleCatalog" class="edibleCatalog"></div>
+</div>
   <div id="settingsLinkedFooter" class="settingsLinkedFooter">🍄 Application Champignons liée à Couteau Suisse</div>
 </div></div>
 <div id="installHelp" class="standaloneOverlay hidden" aria-hidden="true"><div class="standalonePanel installPanel">
@@ -105,11 +117,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=33"></script>
-<script src="champignons.js?v=33" defer></script>
+<script src="config.js?v=34"></script>
+<script src="champignons.js?v=34" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=33',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=34',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
