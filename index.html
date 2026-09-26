@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=8">
+<link rel="manifest" href="manifest.webmanifest?v=9">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=8">
+<link rel="stylesheet" href="champignons.css?v=9">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -14,7 +14,7 @@
 <section id="homeHero" class="hero"><img src="champignon-cepe.svg" alt="Champignon"><div class="heroText"><h2>🍄 Champignons</h2><p>Vos bois, vos photos et vos coins enregistrés.</p></div></section>
 
 <div id="memberContent">
-<section id="homeView" class="panel mushroomHomePanel"><h3>Que voulez-vous faire ?</h3><div class="actions mushroomHomeActions"><button id="browseBtn" class="btn returnWoodHome">🌲 RETOURNER DANS LE BOIS<span>Tous les bois du plus près au plus loin, calculés depuis votre position GPS actuelle</span></button><button id="addSpotBtn" class="btn addWoodHome">➕ AJOUTER UN BOIS<span>GPS + photo + reconnaissance du champignon</span></button></div><div class="carHomeBlock"><button id="carBtn" class="btn carHome">🚗 ENREGISTRER LA VOITURE<span>Mémorise la position GPS exacte de votre auto</span></button><button id="resetCarBtn" type="button" class="carReset hidden">📍 Enregistrer un nouvel emplacement de la voiture</button><div id="carStatus" class="status">Aucun emplacement de voiture enregistré.</div></div><div id="identityInfo" class="status"></div></section>
+<section id="homeView" class="panel mushroomHomePanel"><h3>Que voulez-vous faire ?</h3><div class="currentPositionCard"><div id="currentPositionStatus" class="currentPositionStatus">📍 Recherche de votre position actuelle…</div><button id="refreshCurrentPositionBtn" type="button" class="currentPositionRefresh">🔄 ACTUALISER MA POSITION</button></div><div class="actions mushroomHomeActions"><button id="browseBtn" class="btn returnWoodHome">🌲 RETOURNER DANS LE BOIS<span>Tous les bois du plus près au plus loin, calculés depuis votre position GPS actuelle</span></button><button id="addSpotBtn" class="btn addWoodHome">➕ AJOUTER UN BOIS<span>GPS + photo + reconnaissance du champignon</span></button></div><div class="carHomeBlock"><button id="carBtn" class="btn carHome">🚗 ENREGISTRER LA VOITURE<span>Mémorise la position GPS exacte de votre auto</span></button><button id="resetCarBtn" type="button" class="carReset hidden">📍 Enregistrer un nouvel emplacement de la voiture</button><div id="carStatus" class="status">Aucun emplacement de voiture enregistré.</div></div><div id="identityInfo" class="status"></div></section>
 <section id="addView" class="hidden">
   <div class="topBack"><button id="backHome1">← RETOUR</button><b id="addViewTitle">Ajouter un bois</b></div>
 <div class="panel"><h3>1. Localiser le bois</h3><p>Une fois dans le bois, appuyez sur le bouton pour enregistrer sa position. Aucune adresse ne sera affichée.</p><button id="locateBtn" class="btn">📍 LOCALISER LE BOIS</button><div id="gpsStatus" class="status">Appuyez sur « Localiser le bois ».</div></div>
@@ -56,11 +56,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=8"></script>
-<script src="champignons.js?v=8" defer></script>
+<script src="config.js?v=9"></script>
+<script src="champignons.js?v=9" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=8',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=9',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
