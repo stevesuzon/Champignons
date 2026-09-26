@@ -159,3 +159,10 @@
 .unlockFields input{width:100%;min-height:64px;border:3px solid #4e9766;border-radius:15px;background:#07130d;color:#fff;text-align:center;font-size:28px;font-weight:1000;letter-spacing:7px;padding-left:14px}
 .unlockFields input:focus{outline:none;border-color:#75e69b;box-shadow:0 0 0 3px rgba(117,230,155,.15)}
 .unlockPanel .entryContinueBtn{min-height:60px}
+
+.requestCodeBox{margin-top:16px;padding:13px;border:2px solid #3e704e;border-radius:16px;background:#0a1c10;text-align:center}
+.requestCodeBox p{margin:0 0 10px;color:#e2f4e7;font-size:15px;line-height:1.35}
+.requestCodeBtn{display:flex;align-items:center;justify-content:center;width:100%;min-height:64px;margin-top:9px;padding:10px 12px;border:0;border-radius:15px;text-decoration:none;text-align:center;font-size:16px;font-weight:1000;line-height:1.15}
+.requestCodeBtn span{display:block;font-size:13px;margin-left:6px}
+.emailRequestBtn{background:#1778d8;color:#fff}
+.snapRequestBtn{background:#fffc00;color:#111}
