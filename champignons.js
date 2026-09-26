@@ -10,9 +10,7 @@ var FREE_UNTIL_CACHE_KEY='carplay_contest_app_free_until_ms';
 var ONBOARDING_KEY='champignons_onboarding_v5';
 var CAR_POSITION_KEY='champignons_car_position_v1';
 var USER_POSITION_KEY='champignons_user_position_v1';
-var PIN_HASH_KEY='champignons_unlock_pin_hash_v1';
-var PIN_SALT_KEY='champignons_unlock_pin_salt_v1';
-var PIN_SESSION_KEY='champignons_unlocked_session_v1';
+var ACTIVATION_OK_KEY='champignons_activation_ok_v1';
 function cachedTrialUntil(){var ms=0;try{ms=Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY)||0)}catch(_){}return Number.isFinite(ms)&&ms>0?ms:0}
 async function syncTrialUntil(){var cached=cachedTrialUntil();try{var r=await fetch(API_BASE+'/api/contest/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}),j=await r.json();var ms=Number(j&&j.appFreeUntil||0);if(r.ok&&ms>0){try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(ms))}catch(_){}return ms}}catch(_){}return cached}
 function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
@@ -69,41 +67,39 @@ async function saveOrUpdateMyPosition(){
     status('savedPositionStatus','❌ '+(e.message||'Impossible de sauvegarder votre position.'),'bad')
   }finally{if(b)b.disabled=false}
 }
-async function pinHashValue(pin,salt){var data=new TextEncoder().encode(String(salt||'')+':'+String(pin||'')),buf=await crypto.subtle.digest('SHA-256',data);return Array.from(new Uint8Array(buf)).map(function(b){return b.toString(16).padStart(2,'0')}).join('')}
-function pinExists(){try{return !!localStorage.getItem(PIN_HASH_KEY)}catch(_){return false}}
+function cleanActivationCode(v){return String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'').slice(0,6)}
+function formatActivationCode(v){v=cleanActivationCode(v);return v.length>3?v.slice(0,3)+' '+v.slice(3):v}
 function setUnlockGate(open){var g=$('unlockGate');if(!g)return;g.classList.toggle('hidden',!open);g.setAttribute('aria-hidden',open?'false':'true')}
-function resetUnlockInputs(){if($('unlockCodeInput'))$('unlockCodeInput').value='';if($('unlockCodeConfirm'))$('unlockCodeConfirm').value='';status('unlockStatus','')}
-function showUnlockGate(){
-  try{if(sessionStorage.getItem(PIN_SESSION_KEY)==='1'){setUnlockGate(false);return}}catch(_){}
-  resetUnlockInputs();setUnlockGate(true);
-  var create=!pinExists(),title=$('unlockTitle'),txt=$('unlockText'),confirmInput=$('unlockCodeConfirm'),btn=$('unlockSubmitBtn');
-  if(create){
-    if(title)title.textContent='CRÉER VOTRE CODE CHAMPIGNONS';
-    if(txt)txt.textContent='Votre e-mail est confirmé. Choisissez maintenant un code personnel à 4 chiffres pour déverrouiller l’application.';
-    if(confirmInput)confirmInput.classList.remove('hidden');
-    if(btn)btn.textContent='🔐 ENREGISTRER MON CODE'
-  }else{
-    if(title)title.textContent='DÉVERROUILLER CHAMPIGNONS';
-    if(txt)txt.textContent='Entrez votre code personnel à 4 chiffres.';
-    if(confirmInput)confirmInput.classList.add('hidden');
-    if(btn)btn.textContent='🔓 DÉVERROUILLER'
-  }
+function activationRemembered(){try{return localStorage.getItem(ACTIVATION_OK_KEY)==='1'&&cleanActivationCode(localStorage.getItem(MAIN_CODE_KEY)||'').length===6}catch(_){return false}}
+function showUnlockGate(force){
+  if(!force&&activationRemembered()){setUnlockGate(false);return}
+  if($('unlockCodeInput'))$('unlockCodeInput').value=formatActivationCode(localStorage.getItem(MAIN_CODE_KEY)||'');
+  status('unlockStatus','Ce code active l’application Champignons.');
+  setUnlockGate(true);
   setTimeout(function(){try{$('unlockCodeInput').focus()}catch(_){}},100)
 }
 async function submitUnlockCode(){
-  var pin=String($('unlockCodeInput').value||'').replace(/\D/g,''),btn=$('unlockSubmitBtn');if(!/^\d{4}$/.test(pin)){status('unlockStatus','❌ Entrez un code de 4 chiffres.','bad');return}
+  var input=$('unlockCodeInput'),btn=$('unlockSubmitBtn'),code=cleanActivationCode(input&&input.value||'');
+  if(code.length!==6){status('unlockStatus','❌ Entrez le code Champignons de 6 caractères.','bad');return}
   if(btn)btn.disabled=true;
+  status('unlockStatus','Vérification du code Champignons…');
   try{
-    if(!pinExists()){
-      var confirmPin=String($('unlockCodeConfirm').value||'').replace(/\D/g,'');if(pin!==confirmPin){status('unlockStatus','❌ Les deux codes ne sont pas identiques.','bad');return}
-      var salt=Array.from(crypto.getRandomValues(new Uint8Array(16))).map(function(b){return b.toString(16).padStart(2,'0')}).join(''),hash=await pinHashValue(pin,salt);
-      localStorage.setItem(PIN_SALT_KEY,salt);localStorage.setItem(PIN_HASH_KEY,hash);sessionStorage.setItem(PIN_SESSION_KEY,'1');status('unlockStatus','✅ Code enregistré. Champignons est déverrouillé.','ok');setTimeout(function(){setUnlockGate(false)},450)
-    }else{
-      var salt=localStorage.getItem(PIN_SALT_KEY)||'',hash=await pinHashValue(pin,salt),expected=localStorage.getItem(PIN_HASH_KEY)||'';
-      if(hash!==expected){status('unlockStatus','❌ Code incorrect.','bad');return}
-      sessionStorage.setItem(PIN_SESSION_KEY,'1');status('unlockStatus','✅ Application déverrouillée.','ok');setTimeout(function(){setUnlockGate(false)},250)
+    localStorage.setItem(MAIN_CODE_KEY,code);
+    state.accessToken='';
+    var ok=await checkAccess();
+    if(!ok){
+      localStorage.removeItem(MAIN_CODE_KEY);
+      localStorage.removeItem(ACTIVATION_OK_KEY);
+      status('unlockStatus','❌ Code Champignons invalide ou non activé.','bad');
+      return
     }
-  }catch(e){status('unlockStatus','❌ Impossible de vérifier le code.','bad')}finally{if(btn)btn.disabled=false}
+    localStorage.setItem(ACTIVATION_OK_KEY,'1');
+    status('unlockStatus','✅ Champignons activé à vie sur ce compte.','ok');
+    setTimeout(function(){setUnlockGate(false);show('homeView')},450)
+  }catch(e){
+    localStorage.removeItem(ACTIVATION_OK_KEY);
+    status('unlockStatus','❌ Impossible de vérifier le code pour le moment.','bad')
+  }finally{if(btn)btn.disabled=false}
 }
 function fmtDate(ms){try{return new Date(Number(ms)).toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit',year:'numeric'})}catch(_){return ''}}
 function guide(v){var raw=clean(v),parts=raw.split(/\s*(?:,|;|\+)\s*/).filter(Boolean);if(parts.length>1)return{category:'Plusieurs champignons',season:'Selon les variétés',habitat:'Plusieurs variétés ont été signalées dans ce bois. Consultez la liste de la fiche.'};var n=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase();if(/cepe|bolet/.test(n))return{category:'Cèpes / Bolets',season:'Juin à novembre',habitat:'Chênes, hêtres, châtaigniers et conifères ; sols moussus après la pluie.'};if(/girolle|chanterelle/.test(n))return{category:'Girolles / Chanterelles',season:'Juin à novembre',habitat:'Sous feuillus ou conifères, sols moussus et acides, souvent en groupes.'};if(/trompette/.test(n))return{category:'Trompettes',season:'Août à novembre',habitat:'Sous hêtres et chênes, sols frais, humides et ombragés.'};if(/morille/.test(n))return{category:'Morilles',season:'Mars à mai',habitat:'Lisières, frênes, vieux vergers et certains sols calcaires ou remués.'};if(/pied.*mouton|hydne/.test(n))return{category:'Pieds-de-mouton',season:'Août à décembre',habitat:'Bois de feuillus et conifères, sous feuilles ou aiguilles.'};if(/coulemelle|lepiote/.test(n))return{category:'Coulemelles / Lépiotes',season:'Juillet à novembre',habitat:'Prairies, clairières, lisières et bords de chemins herbeux.'};if(/lactaire/.test(n))return{category:'Lactaires',season:'Juillet à novembre',habitat:'Pins, épicéas, bouleaux ou autres feuillus selon l’espèce.'};if(/russule/.test(n))return{category:'Russules',season:'Juin à novembre',habitat:'Bois de feuillus et de conifères ; habitat variable selon l’espèce.'};if(/amanite/.test(n))return{category:'Amanites',season:'Juin à novembre',habitat:'Bois et lisières sous divers arbres. Identification particulièrement délicate.'};if(/agaric/.test(n))return{category:'Agarics',season:'Mai à novembre',habitat:'Prairies, pelouses, lisières ou sous-bois selon l’espèce.'};if(/coprin/.test(n))return{category:'Coprins',season:'Printemps à automne',habitat:'Pelouses, bords de chemins et terrains riches en matière organique.'};return{category:'Autres champignons',season:'Selon l’espèce et la météo',habitat:'Habitat variable selon l’espèce.'}}
@@ -286,7 +282,7 @@ async function finishEntry(identityData){if(identityData)saveIdentityLocal(ident
 var entryWatchTimer=null;
 function watchEntryVerification(){if(entryWatchTimer)clearInterval(entryWatchTimer);var left=75;entryWatchTimer=setInterval(async function(){left--;var x=identity()||{};try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.verified){clearInterval(entryWatchTimer);entryWatchTimer=null;status('entryStatus','✅ E-mail Champignons confirmé. Connexion enregistrée.','ok');setTimeout(function(){finishEntry(j.identity||x)},700);return}}catch(_){}if(left<=0){clearInterval(entryWatchTimer);entryWatchTimer=null}},4000)}
 async function submitFirstEntry(){var last=clean($('entryLastName').value),first=clean($('entryFirstName').value),email=clean($('entryEmail').value).toLowerCase(),b=$('entryContinueBtn');if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('entryStatus','❌ Nom, prénom et adresse e-mail valide sont obligatoires.','bad');return}saveIdentityLocal({lastName:last,firstName:first,email:email});$('entryNeedCouteau').classList.add('hidden');b.disabled=true;status('entryStatus','Préparation de votre inscription Champignons…');try{var sr=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:email}),cache:'no-store'}),sj=await sr.json().catch(function(){return {}});if(sr.ok&&sj&&sj.verified){await fetch(API_BASE+'/api/app-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:'champignons-'+identityPlatform(),firstName:first,lastName:last,email:email,sourceApp:'champignons',appName:'Champignons',notifyEmail:true}),cache:'no-store'}).catch(function(){});status('entryStatus','✅ Compte reconnu. Ouverture de Champignons…','ok');await finishEntry(sj.identity||{lastName:last,firstName:first,email:email});return}var r=await fetch(API_BASE+'/api/app-identity/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:'champignons-'+identityPlatform(),firstName:first,lastName:last,email:email,sourceApp:'champignons',appName:'Champignons',emailBrand:'Champignons',emailSubject:'Champignons — confirmez votre adresse e-mail',redirectUrl:location.origin+location.pathname+'?champignons_confirmed=1',returnUrl:location.origin+location.pathname+'?champignons_confirmed=1',callbackUrl:location.origin+location.pathname+'?champignons_confirmed=1'}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.alreadyVerified){status('entryStatus','✅ Compte reconnu. Ouverture de Champignons…','ok');await finishEntry(j.identity||{lastName:last,firstName:first,email:email});return}if(!r.ok||!j.ok)throw j;$('entryNeedCouteau').classList.remove('hidden');status('entryStatus','📧 Un e-mail de confirmation Champignons a été demandé. Ouvrez-le puis confirmez votre adresse : le lien doit vous ramener directement dans Champignons.','ok');watchEntryVerification()}catch(e){$('entryNeedCouteau').classList.remove('hidden');status('entryStatus','Compte Couteau Suisse non trouvé ou non confirmé. Inscrivez-vous d’abord sur Couteau Suisse, puis revenez ici.','bad')}finally{b.disabled=false}}
-async function startEntryGate(){fillEntryFields();if($('openCouteauSuisseBtn'))$('openCouteauSuisseBtn').href=COUTEAU_SUISSE_URL;var done=false;try{done=localStorage.getItem(ONBOARDING_KEY)==='1'}catch(_){}if(done&&identityComplete()){setEntryGate(false);await checkAccess();showUnlockGate();return}setEntryGate(true)}
+async function startEntryGate(){fillEntryFields();if($('openCouteauSuisseBtn'))$('openCouteauSuisseBtn').href=COUTEAU_SUISSE_URL;var done=false;try{done=localStorage.getItem(ONBOARDING_KEY)==='1'}catch(_){}if(done&&identityComplete()){setEntryGate(false);if(activationRemembered()){setUnlockGate(false);checkAccess();return}await checkAccess();showUnlockGate(true);return}setEntryGate(true)}
 function closeAllSettingsPanels(){['accountPanel','positionPanel','gpsPanel','membersPanel'].forEach(function(id){var e=$(id);if(e)e.classList.add('hidden')});var m=document.querySelector('.settingsMenu');if(m)m.classList.remove('hidden')}
 function openSettingsPanel(id){closeAllSettingsPanels();var m=document.querySelector('.settingsMenu');if(m)m.classList.add('hidden');var e=$(id);if(e)e.classList.remove('hidden');if(id==='accountPanel')refreshAccountPanel();if(id==='positionPanel')refreshSavedPositionPanel();if(id==='gpsPanel')refreshGpsPref();if(id==='membersPanel')loadMembers()}
 async function refreshAccountPanel(){fillAccountFields();var x=identity()||{},card=$('accountConfirmedCard'),edit=$('accountEditArea');if(!identityComplete(x)){if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Renseignez vos coordonnées Couteau Suisse.');return}var verified=false;try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});verified=!!(r.ok&&j&&j.verified);if(verified&&j.identity)x=saveIdentityLocal(j.identity)}catch(_){}if(verified){if(card)card.classList.remove('hidden');if(edit)edit.classList.add('hidden');if($('confirmedAccountName'))$('confirmedAccountName').textContent=(clean(x.firstName)+' '+clean(x.lastName)).trim();if($('confirmedAccountEmail'))$('confirmedAccountEmail').textContent=clean(x.email);status('accountLinkStatus','✅ Compte confirmé et lié.','ok')}else{if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Coordonnées enregistrées. Confirmation Couteau Suisse en attente.')}} 
@@ -304,8 +300,7 @@ Array.from(document.querySelectorAll('[data-close-panel]')).forEach(function(b){
 if($('saveCouteauAccountBtn'))$('saveCouteauAccountBtn').onclick=saveCouteauAccount;
 if($('entryContinueBtn'))$('entryContinueBtn').onclick=submitFirstEntry;
 if($('unlockSubmitBtn'))$('unlockSubmitBtn').onclick=submitUnlockCode;
-if($('unlockCodeInput'))$('unlockCodeInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitUnlockCode()});
-if($('unlockCodeConfirm'))$('unlockCodeConfirm').addEventListener('keydown',function(e){if(e.key==='Enter')submitUnlockCode()});
+if($('unlockCodeInput')){$('unlockCodeInput').addEventListener('input',function(e){e.target.value=formatActivationCode(e.target.value)});$('unlockCodeInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitUnlockCode()})}
 if($('carBtn'))$('carBtn').onclick=carAction;
 if($('resetCarBtn'))$('resetCarBtn').onclick=recordCarPosition;
 if($('saveMyPositionBtn'))$('saveMyPositionBtn').onclick=saveOrUpdateMyPosition;
