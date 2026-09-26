@@ -217,7 +217,18 @@ function referenceMushroomPhotos(species){
     return true
   })
 }
+function generatedCombinationPhoto(species){
+  var n=normSpecies(species||'');
+  if(/(cepe|bolet)/.test(n)&&/girolle/.test(n)&&/trompette/.test(n)){
+    return 'photos/cepe-girolle-trompette.jpg?v=35'
+  }
+  return ''
+}
 function referencePhotoGallery(s,idx){
+  var generated=generatedCombinationPhoto(s&&s.species);
+  if(generated){
+    return '<img class="mushSpotPhoto generatedMushPhoto" src="'+generated+'" alt="'+esc('Photo réaliste réunissant toutes les variétés indiquées : '+(s.species||'champignons'))+'" loading="'+(idx<6?'eager':'lazy')+'" decoding="async" fetchpriority="'+(idx<6?'high':'low')+'">'
+  }
   var photos=referenceMushroomPhotos(s&&s.species);
   if(!photos.length)return '<div class="woodPlaceholder">🍄<small>PHOTO À AJOUTER</small></div>';
   return '<canvas class="mushroomCompositeCanvas" width="1000" height="760" data-photos="'+esc(encodeURIComponent(JSON.stringify(photos.map(function(p){return p.thumb}))))+'" aria-label="'+esc('Photo regroupant toutes les variétés indiquées : '+(s.species||'champignons'))+'"></canvas>'
