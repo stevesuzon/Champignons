@@ -195,30 +195,73 @@ function localDistanceKm(s){var p=liveReference(),lat=Number(s&&s.latitude),lon=
 function applyLiveDistances(rows){return (rows||[]).map(function(s){var x=Object.assign({},s),d=localDistanceKm(x);x.distanceKm=d==null?null:Number(d.toFixed(1));return x})}
 function keepNearbyWoods(rows){return (rows||[]).filter(function(s){var d=Number(s&&s.distanceKm);if(!Number.isFinite(d)){var calc=localDistanceKm(s);if(calc==null)return false;d=calc;s.distanceKm=Number(calc.toFixed(1))}return d<=100})}
 var REFERENCE_MUSHROOM_PHOTOS=[
-  {test:/cepe|bolet/,label:'Cèpe / bolet',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Boletus_edulis_in_moss_and_grass.jpg/330px-Boletus_edulis_in_moss_and_grass.jpg',full:'https://upload.wikimedia.org/wikipedia/commons/c/cc/Boletus_edulis_in_moss_and_grass.jpg',credit:'Photo réelle · Wikimedia Commons · CC0'},
-  {test:/girolle/,label:'Girolle',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Cantharellus_cibarius_2009_G3.jpg/330px-Cantharellus_cibarius_2009_G3.jpg',full:'https://upload.wikimedia.org/wikipedia/commons/3/3e/Cantharellus_cibarius_2009_G3.jpg',credit:'Photo réelle · Wikimedia Commons · domaine public'},
-  {test:/trompette/,label:'Trompette-de-la-mort',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Craterellus_cornucopioides.jpg/330px-Craterellus_cornucopioides.jpg',full:'https://upload.wikimedia.org/wikipedia/commons/9/9d/Craterellus_cornucopioides.jpg',credit:'Photo réelle · Wikimedia Commons · domaine public'},
-  {test:/lactaire/,label:'Lactaire délicieux',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Lactarius_deliciosus_%2823822564856%29.jpg/330px-Lactarius_deliciosus_%2823822564856%29.jpg',full:'https://upload.wikimedia.org/wikipedia/commons/6/63/Lactarius_deliciosus_%2823822564856%29.jpg',credit:'Peter Pearsall / USFWS · CC BY 2.0'},
-  {test:/chanterelle/,label:'Chanterelle',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Funnel_chanterelle_%281%29.jpg/360px-Funnel_chanterelle_%281%29.jpg',full:'https://upload.wikimedia.org/wikipedia/commons/7/79/Funnel_chanterelle_%281%29.jpg',credit:'Photo réelle · Wikimedia Commons · domaine public'}
-]
+  {test:/cepe|bolet/,label:'Cèpe / bolet',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/c/cc/Boletus_edulis_in_moss_and_grass.jpg/330px-Boletus_edulis_in_moss_and_grass.jpg'},
+  {test:/girolle/,label:'Girolle',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/3/3e/Cantharellus_cibarius_2009_G3.jpg/330px-Cantharellus_cibarius_2009_G3.jpg'},
+  {test:/trompette/,label:'Trompette-de-la-mort',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/9/9d/Craterellus_cornucopioides.jpg/330px-Craterellus_cornucopioides.jpg'},
+  {test:/lactaire/,label:'Lactaire',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/6/63/Lactarius_deliciosus_%2823822564856%29.jpg/330px-Lactarius_deliciosus_%2823822564856%29.jpg'},
+  {test:/chanterelle/,label:'Chanterelle',thumb:'https://upload.wikimedia.org/wikipedia/commons/thumb/7/79/Funnel_chanterelle_%281%29.jpg/360px-Funnel_chanterelle_%281%29.jpg'},
+  {test:/morille/,label:'Morille',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Morchella.esculenta..001..JPG?width=420'},
+  {test:/pied.*mouton|hydne/,label:'Pied-de-mouton',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Hydnum_repandum.jpg?width=420'},
+  {test:/coulemelle|lepiote/,label:'Coulemelle',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Macrolepiota-procera.jpg?width=420'},
+  {test:/russule/,label:'Russule',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Russula_cyanoxantha_(44290996435).jpg?width=420'},
+  {test:/agaric/,label:'Agaric',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Agaricus_campestris.jpg?width=420'},
+  {test:/coprin/,label:'Coprin',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Coprinus_comatus.jpg?width=420'},
+  {test:/pleurote/,label:'Pleurote',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Pleurotus_ostreatus.jpg?width=420'},
+  {test:/pholiote/,label:'Pholiote',thumb:'https://commons.wikimedia.org/wiki/Special:Redirect/file/Kuehneromyces_mutabilis.jpg?width=420'}
+];
 function referenceMushroomPhotos(species){
-  var n=normSpecies(species||'');
-  return REFERENCE_MUSHROOM_PHOTOS.filter(function(p){return p.test.test(n)}).slice(0,3)
+  var n=normSpecies(species||''),seen={};
+  return REFERENCE_MUSHROOM_PHOTOS.filter(function(p){
+    if(!p.test.test(n)||seen[p.label])return false;
+    seen[p.label]=1;
+    return true
+  })
 }
 function referencePhotoGallery(s,idx){
   var photos=referenceMushroomPhotos(s&&s.species);
   if(!photos.length)return '<div class="woodPlaceholder">🍄<small>PHOTO À AJOUTER</small></div>';
-  return '<canvas class="mushroomCompositeCanvas" width="900" height="620" data-photos="'+esc(encodeURIComponent(JSON.stringify(photos.map(function(p){return p.thumb}))))+'" aria-label="'+esc('Photo regroupant '+(s.species||'les champignons'))+'"></canvas>'
+  return '<canvas class="mushroomCompositeCanvas" width="1000" height="760" data-photos="'+esc(encodeURIComponent(JSON.stringify(photos.map(function(p){return p.thumb}))))+'" aria-label="'+esc('Photo regroupant toutes les variétés indiquées : '+(s.species||'champignons'))+'"></canvas>'
 }
 function loadMushroomPhoto(src){return new Promise(function(resolve,reject){var im=new Image();im.crossOrigin='anonymous';im.onload=function(){resolve(im)};im.onerror=reject;im.src=src})}
-function drawCoverToCanvas(ctx,img,x,y,w,h,fadeLeft,fadeRight){
+function drawCoverToCanvas(ctx,img,x,y,w,h,fadeLeft,fadeRight,fadeTop,fadeBottom){
   var t=document.createElement('canvas');t.width=Math.max(1,Math.round(w));t.height=Math.max(1,Math.round(h));var tc=t.getContext('2d'),scale=Math.max(w/img.width,h/img.height),sw=w/scale,sh=h/scale,sx=(img.width-sw)/2,sy=(img.height-sh)/2;tc.drawImage(img,sx,sy,sw,sh,0,0,w,h);
-  if(fadeLeft||fadeRight){tc.globalCompositeOperation='destination-in';var g=tc.createLinearGradient(0,0,w,0);if(fadeLeft){g.addColorStop(0,'rgba(0,0,0,0)');g.addColorStop(.18,'rgba(0,0,0,1)')}else g.addColorStop(0,'rgba(0,0,0,1)');if(fadeRight){g.addColorStop(.82,'rgba(0,0,0,1)');g.addColorStop(1,'rgba(0,0,0,0)')}else g.addColorStop(1,'rgba(0,0,0,1)');tc.fillStyle=g;tc.fillRect(0,0,w,h)}
+  if(fadeLeft||fadeRight){
+    tc.globalCompositeOperation='destination-in';var gx=tc.createLinearGradient(0,0,w,0);
+    gx.addColorStop(0,fadeLeft?'rgba(0,0,0,0)':'rgba(0,0,0,1)');
+    gx.addColorStop(.16,'rgba(0,0,0,1)');gx.addColorStop(.84,'rgba(0,0,0,1)');
+    gx.addColorStop(1,fadeRight?'rgba(0,0,0,0)':'rgba(0,0,0,1)');
+    tc.fillStyle=gx;tc.fillRect(0,0,w,h)
+  }
+  if(fadeTop||fadeBottom){
+    tc.globalCompositeOperation='destination-in';var gy=tc.createLinearGradient(0,0,0,h);
+    gy.addColorStop(0,fadeTop?'rgba(0,0,0,0)':'rgba(0,0,0,1)');
+    gy.addColorStop(.14,'rgba(0,0,0,1)');gy.addColorStop(.86,'rgba(0,0,0,1)');
+    gy.addColorStop(1,fadeBottom?'rgba(0,0,0,0)':'rgba(0,0,0,1)');
+    tc.fillStyle=gy;tc.fillRect(0,0,w,h)
+  }
   ctx.drawImage(t,x,y,w,h)
+}
+function drawMushroomRow(ctx,imgs,y,rowH,W){
+  var n=imgs.length;if(!n)return;
+  if(n===1){drawCoverToCanvas(ctx,imgs[0],0,y,W,rowH,false,false,false,false);return}
+  var overlap=.18,slotW=Math.ceil(W/(n-(n-1)*overlap)),step=(W-slotW)/(n-1);
+  imgs.forEach(function(im,i){drawCoverToCanvas(ctx,im,Math.round(i*step),y,slotW,rowH,i>0,i<n-1,false,false)})
 }
 async function renderCompositeCanvases(){
   var list=Array.from(document.querySelectorAll('.mushroomCompositeCanvas:not([data-ready])'));
-  await Promise.all(list.map(async function(cv){cv.dataset.ready='1';var urls=[];try{urls=JSON.parse(decodeURIComponent(cv.dataset.photos||''))}catch(_){};if(!urls.length)return;var imgs=[];for(var i=0;i<urls.length;i++){try{imgs.push(await loadMushroomPhoto(urls[i]))}catch(_){}}if(!imgs.length)return;var ctx=cv.getContext('2d'),W=cv.width,H=cv.height;ctx.fillStyle='#112418';ctx.fillRect(0,0,W,H);if(imgs.length===1){drawCoverToCanvas(ctx,imgs[0],0,0,W,H,false,false);return}var n=imgs.length,slotW=Math.ceil(W/(n-(n-1)*.18)),step=(W-slotW)/(n-1);imgs.forEach(function(im,i){drawCoverToCanvas(ctx,im,Math.round(i*step),0,slotW,H,i>0,i<n-1)})}))
+  await Promise.all(list.map(async function(cv){
+    cv.dataset.ready='1';
+    var urls=[];try{urls=JSON.parse(decodeURIComponent(cv.dataset.photos||''))}catch(_){}
+    if(!urls.length)return;
+    var imgs=[];for(var i=0;i<urls.length;i++){try{imgs.push(await loadMushroomPhoto(urls[i]))}catch(_){}}
+    if(!imgs.length)return;
+    var ctx=cv.getContext('2d'),W=cv.width,H=cv.height;ctx.fillStyle='#112418';ctx.fillRect(0,0,W,H);
+    if(imgs.length<=3){drawMushroomRow(ctx,imgs,0,H,W);return}
+    var split=Math.ceil(imgs.length/2),top=imgs.slice(0,split),bottom=imgs.slice(split),rowH=Math.ceil(H*.54);
+    drawMushroomRow(ctx,top,0,rowH,W);
+    drawMushroomRow(ctx,bottom,H-rowH,rowH,W);
+    var shade=ctx.createLinearGradient(0,H*.42,0,H*.58);shade.addColorStop(0,'rgba(0,0,0,0)');shade.addColorStop(.5,'rgba(17,36,24,.12)');shade.addColorStop(1,'rgba(0,0,0,0)');ctx.fillStyle=shade;ctx.fillRect(0,H*.4,W,H*.2)
+  }))
 }
 function forestProfile(tags){tags=tags||{};var leaf=clean(tags.leaf_type||tags.wood||tags.genus||tags.species||'').toLowerCase();if(/needle|conifer|pin|picea|sapin|abies|cedr/.test(leaf))return{species:'Cèpes des pins, lactaires, chanterelles',photoUrl:'mushroom-coniferes.svg',habitat:'Sous conifères : pins, sapins et épicéas. Variétés possibles à confirmer sur place.'};if(/broad|decidu|ch[eê]ne|quercus|h[eê]tre|fagus|chataign/.test(leaf))return{species:'Cèpes / bolets, girolles, trompettes',photoUrl:'mushroom-feuillus.svg',habitat:'Sous feuillus : chênes, hêtres et châtaigniers. Variétés possibles à confirmer sur place.'};return{species:'Cèpes / bolets, girolles, chanterelles',photoUrl:'mushroom-mixte.svg',habitat:'Forêt mixte ou essence non précisée. Variétés possibles à confirmer sur place.'}}
 function forestPrivacy(tags){
