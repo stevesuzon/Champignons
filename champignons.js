@@ -168,25 +168,32 @@ function readForestCache(g){
 function writeForestCache(g,rows){try{localStorage.setItem(FOREST_CACHE_KEY,JSON.stringify({lat:Number(g.lat),lon:Number(g.lon),ts:Date.now(),rows:(rows||[]).slice(0,160)}))}catch(_){}}
 async function discoverPublicForests(g){
   if(!g||!Number.isFinite(Number(g.lat))||!Number.isFinite(Number(g.lon)))return[];
-  var cached=readForestCache(g);if(cached)return cached;
-  var q='[out:json][timeout:18];(way(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][landuse=forest];relation(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][landuse=forest];way(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][natural=wood];relation(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][natural=wood];);out center tags 160;';
-  try{
-    var r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'accept':'application/json'},cache:'force-cache'});
-    if(!r.ok)throw new Error('cartographie indisponible');
-    var j=await r.json(),seen=new Set(),rows=[];
-    (j.elements||[]).forEach(function(e){
-      var t=e.tags||{},name=clean(t.name||'');if(!name)return;
-      var lat=Number(e.lat!=null?e.lat:e.center&&e.center.lat),lon=Number(e.lon!=null?e.lon:e.center&&e.center.lon);
-      if(!Number.isFinite(lat)||!Number.isFinite(lon))return;
-      var key=normSpecies(name);if(seen.has(key))return;seen.add(key);
-      var p=forestProfile(t),privacy=forestPrivacy(t),d=haversine(Number(g.lat),Number(g.lon),lat,lon)/1000;
-      if(d>150)return;
-      rows.push({id:'osm-'+e.type+'-'+e.id,woodName:name,city:clean(t['addr:city']||t['addr:place']||t['is_in:city']||''),latitude:lat,longitude:lon,distanceKm:Number(d.toFixed(1)),species:p.species,habitat:p.habitat,season:'Selon météo, sol et essences',category:'Bois / forêt cartographié',source:'osm',isReferenceForest:true,isPrivate:privacy==='private'?true:privacy==='public'?false:null,privacyStatus:privacy,photoUrl:p.photoUrl,note:'Bois cartographié. Les champignons indiqués sont des possibilités liées au type de forêt, pas une présence garantie.'});
-    });
-    rows=rows.sort(function(a,b){return a.distanceKm-b.distanceKm}).slice(0,160);
-    writeForestCache(g,rows);
-    return rows
-  }catch(_){return cached||[]}
+  var cached=readForestCache(g);if(cached&&cached.length)return cached;
+  var lat=Number(g.lat),lon=Number(g.lon),latD=1.38,cos=Math.max(.25,Math.cos(lat*Math.PI/180)),lonD=1.38/cos;
+  var south=(lat-latD).toFixed(5),west=(lon-lonD).toFixed(5),north=(lat+latD).toFixed(5),east=(lon+lonD).toFixed(5);
+  var q='[out:json][timeout:14];(nwr["name"]["landuse"="forest"]('+south+','+west+','+north+','+east+');nwr["name"]["natural"="wood"]('+south+','+west+','+north+','+east+'););out center tags 260;';
+  var endpoints=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+  for(var ei=0;ei<endpoints.length;ei++){
+    try{
+      var ctrl=new AbortController(),timer=setTimeout(function(){ctrl.abort()},16000);
+      var r=await fetch(endpoints[ei]+'?data='+encodeURIComponent(q),{headers:{'accept':'application/json'},cache:'no-store',signal:ctrl.signal});
+      clearTimeout(timer);
+      if(!r.ok)continue;
+      var j=await r.json(),seen=new Set(),rows=[];
+      (j.elements||[]).forEach(function(e){
+        var t=e.tags||{},name=clean(t.name||'');if(!name)return;
+        var elat=Number(e.lat!=null?e.lat:e.center&&e.center.lat),elon=Number(e.lon!=null?e.lon:e.center&&e.center.lon);
+        if(!Number.isFinite(elat)||!Number.isFinite(elon))return;
+        var d=haversine(lat,lon,elat,elon)/1000;if(d>150)return;
+        var key=normSpecies(name);if(seen.has(key))return;seen.add(key);
+        var p=forestProfile(t),privacy=forestPrivacy(t);
+        rows.push({id:'osm-'+e.type+'-'+e.id,woodName:name,city:clean(t['addr:city']||t['addr:place']||t['is_in:city']||''),latitude:elat,longitude:elon,distanceKm:Number(d.toFixed(1)),species:p.species,habitat:p.habitat,season:'Selon météo, sol et essences',category:'Bois / forêt cartographié',source:'osm',isReferenceForest:true,isPrivate:privacy==='private'?true:privacy==='public'?false:null,privacyStatus:privacy,photoUrl:p.photoUrl,note:'Bois cartographié. Les champignons indiqués sont des possibilités liées au type de forêt, pas une présence garantie.'});
+      });
+      rows=rows.sort(function(a,b){return a.distanceKm-b.distanceKm}).slice(0,160);
+      if(rows.length){writeForestCache(g,rows);return rows}
+    }catch(_){}
+  }
+  return cached||[]
 }
 function mergeReferenceForests(rows,refs,mode){
   var map=new Map();
@@ -232,7 +239,7 @@ async function searchSpots(mode){
       all=keepNearbyWoods(mergeReferenceForests(all,refs,mode));
     }
     renderResults(all,mode);
-    status('browseStatus',all.length+' bois affiché'+(all.length>1?'s':'')+(mode==='route'?' — détour maximum 15 km.':' — bois enregistrés + bois cartographiés autour de vous, kilomètres calculés depuis votre position sauvegardée.'),all.length?'ok':'')
+    status('browseStatus',all.length?all.length+' bois affiché'+(all.length>1?'s':'')+' — kilomètres calculés depuis votre position sauvegardée.':'Recherche terminée : aucun bois chargé pour le moment. Votre position sauvegardée est bien prise en compte.',all.length?'ok':'bad')
   }catch(e){
     var msg=(e&&e.message)||'Recherche impossible.';
     var refs=mode==='nearby'?await refsPromise:[];
