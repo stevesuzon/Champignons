@@ -137,7 +137,7 @@ function openAddMode(mode){resetAdd();setAddMode(mode);show('addView')}
 function closeSpotPhoto(){var m=$('spotPhotoModal');if(m)m.classList.add('hidden')}
 function openSpotPhoto(src,alt){var m=$('spotPhotoModal');if(!m){m=document.createElement('div');m.id='spotPhotoModal';m.className='spotPhotoModal hidden';m.innerHTML='<button type="button" class="spotPhotoClose" aria-label="Retour">← RETOUR</button><img class="spotPhotoLarge" alt="">';document.body.appendChild(m);m.onclick=function(e){if(e.target===m)closeSpotPhoto()};m.querySelector('.spotPhotoClose').onclick=closeSpotPhoto}var img=m.querySelector('.spotPhotoLarge');img.src=src;img.alt=alt||'';m.classList.remove('hidden')}
 
-var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v36',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
+var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v1',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
 function loadLocalSpots(){try{var a=JSON.parse(localStorage.getItem(LOCAL_SPOTS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
 function writeLocalSpots(rows){try{localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify((rows||[]).slice(0,60)));return true}catch(_){try{var light=(rows||[]).slice(0,40).map(function(s){var x=Object.assign({},s);if(String(x.photoUrl||'').indexOf('data:image/')===0)x.photoUrl='';return x});localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify(light));return true}catch(__){return false}}}
 function saveLocalSpot(spot){var rows=loadLocalSpots().filter(function(x){return String(x.id)!==String(spot.id)});rows.unshift(spot);writeLocalSpots(rows)}
@@ -312,23 +312,53 @@ function readForestCache(g){
 function writeForestCache(g,rows){try{localStorage.setItem(FOREST_CACHE_KEY,JSON.stringify({lat:Number(g.lat),lon:Number(g.lon),ts:Date.now(),rows:(rows||[]).slice(0,160)}))}catch(_){}}
 async function fetchForestsRadius(g,radius,limit){
   if(!g||!Number.isFinite(Number(g.lat))||!Number.isFinite(Number(g.lon)))return[];
-  var lat=Number(g.lat),lon=Number(g.lon),maxRadius=Math.min(100000,Math.max(1000,Number(radius)||40000));
-  try{
-    var url='/api/forests?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&radius='+encodeURIComponent(maxRadius)+'&limit='+encodeURIComponent(Math.min(300,Number(limit)||180));
-    var r=await fetch(url,{cache:'no-store'}),j=await r.json();
-    if(!r.ok||!j||!j.ok||!Array.isArray(j.elements))return[];
+  var lat=Number(g.lat),lon=Number(g.lon),maxRadius=Math.min(100000,Math.max(1000,Number(radius)||40000)),maxLimit=Math.min(300,Number(limit)||180);
+
+  function rowsFromElements(elements){
     var seen=new Set(),rows=[];
-    (j.elements||[]).forEach(function(e){
-      var t=e.tags||{},name=clean(t.name||'');if(!name)return;
+    (elements||[]).forEach(function(e){
+      var t=e.tags||{},name=clean(t.name||t['name:fr']||t['addr:place']||t['is_in:city']||'Bois public');
       var elat=Number(e.lat!=null?e.lat:e.center&&e.center.lat),elon=Number(e.lon!=null?e.lon:e.center&&e.center.lon);
       if(!Number.isFinite(elat)||!Number.isFinite(elon))return;
       var d=haversine(lat,lon,elat,elon)/1000;if(d>100)return;
       var key=normSpecies(name)+'|'+elat.toFixed(3)+'|'+elon.toFixed(3);if(seen.has(key))return;seen.add(key);
       var p=forestProfile(t),privacy=forestPrivacy(t);
-      rows.push({id:'osm-'+e.type+'-'+e.id,woodName:name,city:clean(t['addr:city']||t['addr:place']||t['is_in:city']||''),latitude:elat,longitude:elon,distanceKm:Number(d.toFixed(1)),species:p.species,habitat:p.habitat,season:'Selon météo, sol et essences',category:'Bois / forêt cartographié',source:'osm',isReferenceForest:true,isPrivate:privacy==='private'?true:privacy==='public'?false:null,privacyStatus:privacy,photoUrl:p.photoUrl,note:'Bois cartographié. Les champignons indiqués sont des possibilités liées au type de forêt, pas une présence garantie.'});
+      rows.push({id:'osm-'+(e.type||'wood')+'-'+(e.id||key),woodName:name,city:clean(t['addr:city']||t['addr:place']||t['is_in:city']||''),latitude:elat,longitude:elon,distanceKm:Number(d.toFixed(1)),species:p.species,habitat:p.habitat,season:'Selon météo, sol et essences',category:'Bois / forêt cartographié',source:'osm',isReferenceForest:true,isPrivate:privacy==='private'?true:privacy==='public'?false:null,privacyStatus:privacy,photoUrl:p.photoUrl,note:'Bois cartographié. Les champignons indiqués sont des possibilités liées au type de forêt, pas une présence garantie.'});
     });
-    return rows.sort(function(a,b){return a.distanceKm-b.distanceKm})
-  }catch(_){return[]}
+    return rows.sort(function(a,b){return a.distanceKm-b.distanceKm}).slice(0,maxLimit)
+  }
+
+  var qs='?lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon)+'&radius='+encodeURIComponent(maxRadius)+'&limit='+encodeURIComponent(maxLimit);
+  var urls=[location.origin+'/api/forests'+qs];
+  if(API_BASE&&API_BASE!==location.origin)urls.push(API_BASE+'/api/forests'+qs);
+
+  for(var i=0;i<urls.length;i++){
+    try{
+      var r=await fetch(urls[i],{cache:'no-store'}),j=await r.json();
+      if(r.ok&&j&&j.ok&&Array.isArray(j.elements)&&j.elements.length){
+        var viaApi=rowsFromElements(j.elements);if(viaApi.length)return viaApi
+      }
+    }catch(_){}
+  }
+
+  var q='[out:json][timeout:20];('+
+    'nwr(around:'+Math.round(maxRadius)+','+lat+','+lon+')[natural=wood];'+
+    'nwr(around:'+Math.round(maxRadius)+','+lat+','+lon+')[landuse=forest];'+
+    'nwr(around:'+Math.round(maxRadius)+','+lat+','+lon+')[landuse=wood];'+
+    ');out center tags '+Math.min(300,maxLimit)+';';
+  var mirrors=['https://overpass-api.de/api/interpreter','https://overpass.kumi.systems/api/interpreter'];
+  for(var k=0;k<mirrors.length;k++){
+    var ctrl=new AbortController(),timer=setTimeout(function(){try{ctrl.abort()}catch(_){}},18000);
+    try{
+      var rr=await fetch(mirrors[k],{method:'POST',headers:{'content-type':'application/x-www-form-urlencoded;charset=UTF-8','accept':'application/json'},body:'data='+encodeURIComponent(q),signal:ctrl.signal,cache:'no-store'});
+      clearTimeout(timer);
+      var jj=await rr.json();
+      if(rr.ok&&jj&&Array.isArray(jj.elements)){
+        var direct=rowsFromElements(jj.elements);if(direct.length)return direct
+      }
+    }catch(_){clearTimeout(timer)}
+  }
+  return[]
 }
 function dedupeForestRows(rows){
   var map=new Map();
@@ -495,9 +525,10 @@ async function searchSpots(mode){
     return
   }
   state.currentGps={lat:Number(g.lat),lon:Number(g.lon),accuracy:Number(g.accuracy||0),capturedAt:Number(g.savedAt||0)};
+  var gpsLabel=clean(g.address||'Position GPS sauvegardée'),gpsPrecision=Math.round(Number(g.accuracy||0));
   var local=loadLocalSpots(),localRows=keepNearbyWoods(applyLiveDistances(mergeSpots([],local,mode)));
-  if(localRows.length){renderResults(localRows,mode);status('browseStatus','Chargement des autres bois…','ok')}
-  else status('browseStatus','Chargement des bois du plus près au plus loin…');
+  if(localRows.length){renderResults(localRows,mode);status('browseStatus','📍 Position utilisée : '+gpsLabel+' — précision '+gpsPrecision+' m. Chargement des autres bois…','ok')}
+  else status('browseStatus','📍 Position utilisée : '+gpsLabel+' — précision '+gpsPrecision+' m. Recherche des bois à moins de 100 km…','ok');
 
   var payload={mode:'nearby',currentLat:g.lat,currentLon:g.lon,latitude:g.lat,longitude:g.lon};
   var serverPromise=fetch(API_BASE+'/api/mushrooms/search',{method:'POST',headers:authHeaders(),body:JSON.stringify(payload),cache:'no-store'})
