@@ -1,0 +1,21 @@
+{
+  "id": "./",
+  "name": "Champignons",
+  "short_name": "Champignons",
+  "description": "Application indépendante pour enregistrer des bois, reconnaître des champignons et retourner dans les bois enregistrés.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#07130d",
+  "theme_color": "#07130d",
+  "lang": "fr",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "icon.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

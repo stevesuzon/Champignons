@@ -1,0 +1,1 @@
+window.CHAMPIGNONS_CONFIG={API_BASE:'https://carplay-telephone.appli-suzon.workers.dev'};

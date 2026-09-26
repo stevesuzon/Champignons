@@ -1,0 +1,15 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 520">
+<defs><linearGradient id="b" x1="0" y1="0" x2="0" y2="1"><stop stop-color="#183a27"/><stop offset="1" stop-color="#07130d"/></linearGradient></defs>
+<rect width="1200" height="520" fill="url(#b)"/>
+<g fill="#0b2518" opacity=".9">
+<path d="M0 380l110-190 110 190h-55l75 125H0l70-125z"/><path d="M180 390l125-220 125 220h-65l82 130H160l82-130z"/>
+<path d="M835 390l125-220 125 220h-65l82 130H815l82-130z"/><path d="M1010 380l100-180 90 160v160h-250z"/>
+</g>
+<g transform="translate(520 90)">
+<ellipse cx="90" cy="150" rx="165" ry="102" fill="#d94339"/>
+<circle cx="22" cy="122" r="24" fill="#fff"/><circle cx="100" cy="93" r="20" fill="#fff"/><circle cx="161" cy="142" r="18" fill="#fff"/>
+<path d="M47 183c15 7 72 7 87 0l40 170c5 24-13 47-38 47H45c-25 0-43-23-38-47z" fill="#efe4cf"/>
+</g>
+<text x="58" y="90" fill="#fff" font-family="Arial,sans-serif" font-size="54" font-weight="700">CHAMPIGNONS</text>
+<text x="58" y="140" fill="#d8eadf" font-family="Arial,sans-serif" font-size="28">Vos bois, vos photos et vos coins enregistrés</text>
+</svg>
