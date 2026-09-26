@@ -144,3 +144,9 @@
 .currentPositionStatus span{display:block;margin-top:4px;color:#b5cfc0;font-size:12px}
 .currentPositionRefresh{width:100%;min-height:38px;margin-top:8px;border:1px solid #4e8060;border-radius:10px;background:#163923;color:#fff;font-weight:900}
 .currentPositionRefresh:disabled{opacity:.5}
+
+.savedPositionCard{margin:10px 0 12px;padding:14px;border:2px solid #426a4d;border-radius:14px;background:#0a1d11;color:#d7eadc;line-height:1.35}
+.savedPositionCard b{display:block;color:#83f1a7;font-size:19px;margin-bottom:6px}
+.savedPositionCard span{display:block;font-weight:850;overflow-wrap:anywhere}
+.savedPositionCard small{display:block;margin-top:7px;color:#b2cabc;font-size:12px;font-weight:800}
+#saveMyPositionBtn{min-height:58px;font-size:17px}
