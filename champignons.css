@@ -170,3 +170,30 @@
 @media(max-width:390px){
   .woodGrid .speciesLine{font-size:16px!important;line-height:1.2!important}
 }
+
+
+/* V16 — accueil simplifié, gros boutons et voiture */
+.mushroomHomePanel{margin-top:0!important;padding:12px!important}
+.mushroomHomePanel h3{width:100%;margin:0 0 14px!important;padding:8px 4px 10px;text-align:center!important;font-size:32px!important;line-height:1.08}
+.mushroomHomeActions{display:grid!important;grid-template-columns:1fr!important;gap:14px!important}
+.mushroomHomeActions .btn{width:100%!important;min-height:180px!important;border-radius:26px!important;padding:22px 18px!important;font-size:29px!important;line-height:1.05!important;box-shadow:0 10px 28px #0008}
+.mushroomHomeActions .btn span{display:block;margin-top:14px;font-size:16px!important;line-height:1.25!important;font-weight:900}
+.mushroomHomeActions .carHome{margin:0!important;background:linear-gradient(145deg,#b86b12,#784208)!important;border:3px solid #ffc15a!important}
+.carSavedStatus{width:100%;margin-top:12px;padding:13px;border:2px solid #5b8c6b;border-radius:16px;background:#0b2113;color:#dcefe1;text-align:center;font-weight:950;line-height:1.28}
+.carSavedStatus:not(:disabled){cursor:pointer;border-color:#65e18b;background:#10331d}
+.carSavedStatus b{display:block}
+.carSavedStatus span{display:block;margin-top:5px;font-size:15px;color:#fff;overflow-wrap:anywhere}
+.carSavedStatus small{display:block;margin-top:5px;color:#b9d2c1}
+.carSavedStatus em{display:block;margin-top:9px;color:#ffcf7d;font-size:12px;font-style:normal}
+.carSavedStatus:disabled{opacity:.7}
+#homeView #identityInfo{margin-top:12px}
+.snapHomeLink{display:none!important}
+.spotPhotoClose{top:max(12px,env(safe-area-inset-top))!important;left:14px!important;right:auto!important;width:auto!important;min-width:112px!important;height:46px!important;padding:0 14px!important;border-radius:13px!important;background:#2c4937!important;color:#fff!important;font-size:17px!important;line-height:1!important}
+@media(min-width:760px){
+  .mushroomHomeActions{grid-template-columns:repeat(3,minmax(0,1fr))!important}
+  .mushroomHomeActions .btn{min-height:240px!important}
+}
+@media(max-width:390px){
+  .mushroomHomePanel h3{font-size:28px!important}
+  .mushroomHomeActions .btn{min-height:165px!important;font-size:25px!important}
+}
