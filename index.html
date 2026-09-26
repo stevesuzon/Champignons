@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=5">
+<link rel="manifest" href="manifest.webmanifest?v=6">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=5">
+<link rel="stylesheet" href="champignons.css?v=6">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -41,20 +41,26 @@
 <div id="mushSettings" class="standaloneOverlay hidden" aria-hidden="true"><div class="standalonePanel">
   <button id="closeMushSettings" class="overlayClose" type="button">×</button>
   <h2>⚙️ RÉGLAGES CHAMPIGNONS</h2>
-  <div class="settingBlock accountLinkBlock"><h3>👤 Compte Couteau Suisse</h3><p><b>Ce compte Champignons doit être lié au même compte Couteau Suisse.</b><br>Entrez le même nom, le même prénom et la même adresse e-mail que dans Couteau Suisse.</p><div class="accountFields"><label for="accountLastName">NOM</label><input id="accountLastName" maxlength="80" autocomplete="family-name" placeholder="Votre nom"><label for="accountFirstName">PRÉNOM</label><input id="accountFirstName" maxlength="80" autocomplete="given-name" placeholder="Votre prénom"><label for="accountEmail">ADRESSE E-MAIL</label><input id="accountEmail" type="email" inputmode="email" maxlength="190" autocomplete="email" placeholder="votre@email.fr"></div><button id="saveCouteauAccountBtn" class="btn accountLinkBtn">🔗 LIER / ENREGISTRER LE COMPTE</button><div id="accountLinkStatus" class="status">Renseignez vos coordonnées Couteau Suisse.</div></div>
-  <div class="settingBlock"><h3>🧭 GPS préféré</h3><div class="gpsChoices"><button type="button" data-gps="Google Maps">Google Maps</button><button type="button" data-gps="Waze">Waze</button><button type="button" data-gps="Plans Apple">Plans Apple</button></div><div id="gpsPrefStatus" class="status"></div></div>
-  <div class="settingBlock"><h3>📱 Application séparée</h3><p>Une fois installée sur l’écran d’accueil, cette application s’ouvre directement ici avec sa propre icône.</p><button id="installFromSettingsBtn" class="btn blue">📲 INSTALLER L’APPLICATION</button></div>
+  <div class="settingsMenu">
+    <button id="openAccountPanelBtn" class="settingsMenuBtn">👤 COMPTE <span>›</span></button>
+    <button id="openGpsPanelBtn" class="settingsMenuBtn">🧭 GPS PRÉFÉRÉ <span id="gpsMenuValue">›</span></button>
+    <button id="openMembersPanelBtn" class="settingsMenuBtn">👥 PERSONNES INSCRITES <span>›</span></button>
+  </div>
+  <div id="accountPanel" class="settingBlock accountLinkBlock hidden"><button class="subBackBtn" data-close-panel="accountPanel">← RÉGLAGES</button><h3>👤 Compte</h3><div id="accountConfirmedCard" class="confirmedAccount hidden"><b>✅ COMPTE CONFIRMÉ</b><div id="confirmedAccountName"></div><div id="confirmedAccountEmail"></div><div class="linkedAppText">🍄 Application Champignons liée à Couteau Suisse</div></div><div id="accountEditArea"><p>Entrez le même nom, le même prénom et la même adresse e-mail que dans Couteau Suisse.</p><div class="accountFields"><label for="accountLastName">NOM</label><input id="accountLastName" maxlength="80" autocomplete="family-name" placeholder="Votre nom"><label for="accountFirstName">PRÉNOM</label><input id="accountFirstName" maxlength="80" autocomplete="given-name" placeholder="Votre prénom"><label for="accountEmail">ADRESSE E-MAIL</label><input id="accountEmail" type="email" inputmode="email" maxlength="190" autocomplete="email" placeholder="votre@email.fr"></div><button id="saveCouteauAccountBtn" class="btn accountLinkBtn">🔗 LIER / ENREGISTRER LE COMPTE</button></div><div id="accountLinkStatus" class="status"></div></div>
+  <div id="gpsPanel" class="settingBlock hidden"><button class="subBackBtn" data-close-panel="gpsPanel">← RÉGLAGES</button><h3>🧭 GPS préféré</h3><div class="gpsChoices"><button type="button" data-gps="Google Maps">Google Maps</button><button type="button" data-gps="Waze">Waze</button><button type="button" data-gps="Plans Apple">Plans Apple</button></div><div id="gpsPrefStatus" class="status"></div></div>
+  <div id="membersPanel" class="settingBlock hidden"><button class="subBackBtn" data-close-panel="membersPanel">← RÉGLAGES</button><h3>👥 Personnes inscrites</h3><p>Liste des personnes inscrites dans l’application Champignons.</p><button id="refreshMembersBtn" class="btn blue">🔄 ACTUALISER LA LISTE</button><div id="membersStatus" class="status">Ouvrez la liste pour la charger.</div><div id="membersList" class="membersList"></div></div>
+  <div id="settingsLinkedFooter" class="settingsLinkedFooter">🍄 Application Champignons liée à Couteau Suisse</div>
 </div></div>
 <div id="installHelp" class="standaloneOverlay hidden" aria-hidden="true"><div class="standalonePanel installPanel">
   <button id="closeInstallHelp" class="overlayClose" type="button">×</button>
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=5"></script>
-<script src="champignons.js?v=5" defer></script>
+<script src="config.js?v=6"></script>
+<script src="champignons.js?v=6" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=5',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=6',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
