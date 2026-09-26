@@ -150,3 +150,12 @@
 .savedPositionCard span{display:block;font-weight:850;overflow-wrap:anywhere}
 .savedPositionCard small{display:block;margin-top:7px;color:#b2cabc;font-size:12px;font-weight:800}
 #saveMyPositionBtn{min-height:58px;font-size:17px}
+
+.snapHomeLink{display:flex;align-items:center;justify-content:center;width:min(360px,100%);min-height:58px;margin:16px auto 4px;padding:12px 16px;border:3px solid #fff45b;border-radius:18px;background:#fffc00;color:#111;text-decoration:none;text-align:center;font-size:18px;font-weight:1000;box-shadow:0 8px 22px #0006}
+.snapHomeLink:active{transform:scale(.99)}
+.unlockOverlay{z-index:7600;background:#031008f7}
+.unlockPanel{width:min(480px,95vw);text-align:center}
+.unlockFields{display:grid;gap:9px;margin:14px 0}
+.unlockFields input{width:100%;min-height:64px;border:3px solid #4e9766;border-radius:15px;background:#07130d;color:#fff;text-align:center;font-size:28px;font-weight:1000;letter-spacing:12px;padding-left:20px}
+.unlockFields input:focus{outline:none;border-color:#75e69b;box-shadow:0 0 0 3px rgba(117,230,155,.15)}
+.unlockPanel .entryContinueBtn{min-height:60px}
