@@ -75,6 +75,10 @@ function showUnlockGate(){
   setUnlockGate(true);
   setTimeout(function(){try{$('unlockCodeInput').focus()}catch(_){}},100)
 }
+function requestCodeByEmail(){
+  var x=identity()||{},to=clean(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.ADMIN_EMAIL||''),name=(clean(x.firstName)+' '+clean(x.lastName)).trim(),email=clean(x.email),subject='Demande de code Champignons — 10 € / 1 an',body=['Bonjour,','', 'Je souhaite recevoir un code Champignons valable 1 an au prix de 10 €.', '', 'Nom et prénom : '+(name||'Non renseigné'), 'Adresse e-mail : '+(email||'Non renseignée'), '', 'Merci.'].join('\n'),href='mailto:'+(to?encodeURIComponent(to):'')+'?subject='+encodeURIComponent(subject)+'&body='+encodeURIComponent(body);
+  location.href=href
+}
 async function submitUnlockCode(){
   var input=$('unlockCodeInput'),btn=$('unlockSubmitBtn'),code=cleanActivationCode(input&&input.value||'');
   if(code.length!==6){status('unlockStatus','❌ Entrez le code Champignons de 6 caractères.','bad');return}
@@ -295,6 +299,7 @@ Array.from(document.querySelectorAll('[data-close-panel]')).forEach(function(b){
 if($('saveCouteauAccountBtn'))$('saveCouteauAccountBtn').onclick=saveCouteauAccount;
 if($('entryContinueBtn'))$('entryContinueBtn').onclick=submitFirstEntry;
 if($('unlockSubmitBtn'))$('unlockSubmitBtn').onclick=submitUnlockCode;
+if($('requestCodeEmailBtn'))$('requestCodeEmailBtn').onclick=requestCodeByEmail;
 if($('unlockCodeInput')){$('unlockCodeInput').addEventListener('input',function(e){e.target.value=formatActivationCode(e.target.value)});$('unlockCodeInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitUnlockCode()})}
 if($('carBtn'))$('carBtn').onclick=carAction;
 if($('resetCarBtn'))$('resetCarBtn').onclick=recordCarPosition;
