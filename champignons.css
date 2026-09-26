@@ -209,3 +209,32 @@
 .realPhotoBadge{display:inline-block;margin:0 0 5px;padding:4px 7px;border-radius:999px;background:#0f4b2b;color:#a8f5bd;font-size:9px;font-weight:1000;line-height:1.15}
 .mushPhotoCredits{margin:-1px 0 6px;color:#91a99a;font-size:8px;line-height:1.15;overflow-wrap:anywhere}
 @media(max-width:390px){.mushroomPhotoStrip,.woodGrid .mushroomPhotoStrip .referenceMushPhoto{height:104px!important}}
+
+
+/* V25 — Bois publics / Mes bois, favoris, partage et présentation simplifiée */
+.woodTabs{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:8px 0 12px}
+.woodTab{min-height:72px;border:2px solid #3d6549;border-radius:16px;background:#102219;color:#fff;padding:10px 8px;font-weight:1000;font-size:17px;line-height:1.05}
+.woodTab span{display:block;margin-top:6px;color:#b8d7c1;font-size:11px;line-height:1.15}
+.woodTab.active{background:#155d34;border-color:#66e58e;box-shadow:0 0 0 2px rgba(102,229,142,.12) inset}
+.woodTab.active span{color:#e4ffeb}
+.woodGrid .spot{position:relative}
+.favoriteWood{position:absolute;z-index:4;top:48px;right:13px;width:42px;height:42px;border:2px solid #e8d889;border-radius:50%;background:#0b1c11e8;color:#f6e8a2;font-size:27px;line-height:1;font-weight:1000;box-shadow:0 3px 10px #0008}
+.favoriteWood.active{background:#5a4300;color:#ffe46b;border-color:#ffe46b}
+.mushroomCompositeCanvas{display:block;width:100%!important;aspect-ratio:1.42/1;height:auto!important;margin:0 0 9px!important;border-radius:13px!important;background:#102219;object-fit:cover}
+.woodStatusRow{display:flex;align-items:center;gap:6px;flex-wrap:wrap;margin:9px 0 8px}
+.woodStatusLabel{font-weight:1000;font-size:14px}
+.verifyWood{min-height:34px;border:2px solid #55e883;border-radius:10px;background:#0d7538;color:#fff;padding:5px 9px;font-weight:1000;font-size:11px}
+.woodVarieties{margin:10px 0 12px;padding:10px 8px;border-top:1px solid #315c40;border-bottom:1px solid #315c40}
+.woodVarieties b{display:block;color:#fff;font-size:20px;line-height:1.12;margin-bottom:6px}
+.woodVarieties span{display:block;color:#ffe07a;font-size:21px;line-height:1.16;font-weight:1000}
+.sharedWoodBadge{display:inline-block;margin:5px 4px 5px 0;padding:5px 8px;border-radius:999px;background:#4b2b73;color:#eadcff;font-size:10px;font-weight:1000}
+.verifyWoodCard p{color:#cde4d4;font-weight:850}
+.verifyPublicChoice{margin:10px 0;background:#16864a!important}
+.verifyPrivateChoice{margin:10px 0;background:#8c5b18!important}
+.referenceForestBadge,.referenceForestNotice,.realPhotoBadge,.mushPhotoCredits,.mushroomPhotoStrip{display:none!important}
+@media(max-width:390px){
+  .woodTab{font-size:15px;min-height:66px}
+  .favoriteWood{top:44px;right:10px;width:38px;height:38px;font-size:24px}
+  .woodVarieties b{font-size:18px}
+  .woodVarieties span{font-size:19px}
+}
