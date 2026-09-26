@@ -146,10 +146,11 @@ function removeLocalSpot(id){writeLocalSpots(loadLocalSpots().filter(function(x)
 function liveReference(){var p=savedUserPosition();return p&&Number.isFinite(Number(p.lat))&&Number.isFinite(Number(p.lon))?p:null}
 function localDistanceKm(s){var p=liveReference(),lat=Number(s&&s.latitude),lon=Number(s&&s.longitude);if(!p||!Number.isFinite(lat)||!Number.isFinite(lon))return null;return haversine(Number(p.lat),Number(p.lon),lat,lon)/1000}
 function applyLiveDistances(rows){return (rows||[]).map(function(s){var x=Object.assign({},s),d=localDistanceKm(x);x.distanceKm=d==null?null:Number(d.toFixed(1));return x})}
+function keepNearbyWoods(rows){return (rows||[]).filter(function(s){var d=Number(s&&s.distanceKm);if(!Number.isFinite(d)){var calc=localDistanceKm(s);if(calc==null)return false;d=calc;s.distanceKm=Number(calc.toFixed(1))}return d<=150})}
 function forestProfile(tags){tags=tags||{};var leaf=clean(tags.leaf_type||tags.wood||tags.genus||tags.species||'').toLowerCase();if(/needle|conifer|pin|picea|sapin|abies|cedr/.test(leaf))return{species:'Cèpes des pins, lactaires, chanterelles',photoUrl:'mushroom-coniferes.svg',habitat:'Sous conifères : pins, sapins et épicéas. Variétés possibles à confirmer sur place.'};if(/broad|decidu|ch[eê]ne|quercus|h[eê]tre|fagus|chataign/.test(leaf))return{species:'Cèpes / bolets, girolles, trompettes',photoUrl:'mushroom-feuillus.svg',habitat:'Sous feuillus : chênes, hêtres et châtaigniers. Variétés possibles à confirmer sur place.'};return{species:'Cèpes / bolets, girolles, chanterelles',photoUrl:'mushroom-mixte.svg',habitat:'Forêt mixte ou essence non précisée. Variétés possibles à confirmer sur place.'}}
 async function discoverPublicForests(g){
   if(!g||!Number.isFinite(Number(g.lat))||!Number.isFinite(Number(g.lon)))return[];
-  var q='[out:json][timeout:20];(way(around:100000,'+Number(g.lat)+','+Number(g.lon)+')[name][landuse=forest];relation(around:100000,'+Number(g.lat)+','+Number(g.lon)+')[name][landuse=forest];way(around:100000,'+Number(g.lat)+','+Number(g.lon)+')[name][natural=wood];relation(around:100000,'+Number(g.lat)+','+Number(g.lon)+')[name][natural=wood];);out center tags 160;';
+  var q='[out:json][timeout:20];(way(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][landuse=forest];relation(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][landuse=forest];way(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][natural=wood];relation(around:150000,'+Number(g.lat)+','+Number(g.lon)+')[name][natural=wood];);out center tags 160;';
   try{
     var r=await fetch('https://overpass-api.de/api/interpreter?data='+encodeURIComponent(q),{headers:{'accept':'application/json'}});
     if(!r.ok)throw new Error('cartographie indisponible');
@@ -196,24 +197,24 @@ async function searchSpots(mode){
     return
   }
   state.currentGps={lat:Number(g.lat),lon:Number(g.lon),accuracy:Number(g.accuracy||0),capturedAt:Number(g.savedAt||0)};
-  var local=loadLocalSpots(),preview=applyLiveDistances(mergeSpots([],local,mode));
+  var local=loadLocalSpots(),preview=keepNearbyWoods(applyLiveDistances(mergeSpots([],local,mode)));
   if(mode==='nearby'&&preview.length){renderResults(preview,mode);status('browseStatus','📱 Bois enregistrés localement affichés — synchronisation des autres bois…','ok')}
   else status('browseStatus',mode==='route'?'Calcul des bois sur votre trajet…':'Chargement des bois du plus près au plus loin depuis votre position…');
   try{
     var payload={mode:mode,currentLat:g.lat,currentLon:g.lon,latitude:g.lat,longitude:g.lon};
     var r=await fetch(API_BASE+'/api/mushrooms/search',{method:'POST',headers:authHeaders(),body:JSON.stringify(payload),cache:'no-store'}),j=await r.json();
     if(!r.ok||!j.ok)throw j;
-    var all=applyLiveDistances(mergeSpots(j.spots||[],local,mode));
+    var all=keepNearbyWoods(applyLiveDistances(mergeSpots(j.spots||[],local,mode)));
     if(mode==='nearby'){
       var refs=await discoverPublicForests(g);
-      all=mergeReferenceForests(all,refs,mode);
+      all=keepNearbyWoods(mergeReferenceForests(all,refs,mode));
     }
     renderResults(all,mode);
     status('browseStatus',all.length+' bois affiché'+(all.length>1?'s':'')+(mode==='route'?' — détour maximum 15 km.':' — bois enregistrés + bois cartographiés autour de vous, kilomètres calculés depuis votre position sauvegardée.'),all.length?'ok':'')
   }catch(e){
     var msg=(e&&e.message)||'Recherche impossible.';
     var refs=mode==='nearby'?await discoverPublicForests(g):[];
-    var fallback=mergeReferenceForests(preview,refs,mode);
+    var fallback=keepNearbyWoods(mergeReferenceForests(preview,refs,mode));
     if(fallback.length){renderResults(fallback,mode);status('browseStatus','🗺️ Bois enregistrés et bois cartographiés affichés. Synchronisation serveur Champignons indisponible.','bad')}
     else{status('browseStatus','❌ '+msg,'bad');$('spotResults').innerHTML=''}
   }finally{if(b)b.disabled=false}
