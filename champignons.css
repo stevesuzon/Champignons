@@ -197,3 +197,5 @@
   .mushroomHomePanel h3{font-size:28px!important}
   .mushroomHomeActions .btn{min-height:165px!important;font-size:25px!important}
 }
+
+.woodStatusUnknown{display:inline-block;padding:4px 8px;border-radius:999px;background:#5a3b00;color:#ffd67a;font-weight:1000}
