@@ -160,8 +160,26 @@ function saveWoodVerifyMap(m){try{localStorage.setItem(WOOD_VERIFY_KEY,JSON.stri
 function effectivePrivacy(s){var m=woodVerifyMap(),v=m[String(s&&s.id||'')];if(v==='public'||v==='private')return v;if(s&&s.isPrivate===true)return'private';if(s&&s.isPrivate===false)return'public';var p=clean(s&&s.privacyStatus||'').toLowerCase();return p==='private'?'private':p==='public'?'public':'unknown'}
 function filterPublicWoods(rows){return keepNearbyWoods((rows||[]).filter(function(s){return effectivePrivacy(s)!=='private'}))}
 function mergeMyWoods(){var map=new Map();function put(s,kind){if(!s||!s.id)return;var x=Object.assign({},s);if(kind==='shared')x.sharedReceived=true;if(kind==='local')x.localSaved=true;var d=localDistanceKm(x);if(d!=null)x.distanceKm=Number(d.toFixed(1));map.set(String(x.id),Object.assign({},map.get(String(x.id))||{},x))}favoriteWoods().forEach(function(s){put(s,'favorite')});sharedWoods().forEach(function(s){put(s,'shared')});loadLocalSpots().forEach(function(s){put(s,'local')});return sortWoods(Array.from(map.values()),'nearby')}
-function setBrowseSection(section){state.browseSection=section==='my'?'my':'public';var pub=$('publicWoodsTab'),mine=$('myWoodsTab'),refresh=$('nearbySpotsBtn'),title=$('browseModeTitle'),txt=$('browseModeText');if(pub)pub.classList.toggle('active',state.browseSection==='public');if(mine)mine.classList.toggle('active',state.browseSection==='my');if(refresh)refresh.classList.toggle('hidden',state.browseSection==='my');if(title)title.textContent=state.browseSection==='public'?'Bois publics':'Mes bois';if(txt)txt.innerHTML=state.browseSection==='public'?'<b>Du plus près au plus loin</b> dans un rayon maximum de 100 km.':'Vos <b>bois favoris</b>, vos bois enregistrés et les <b>bois reçus de vos amis</b>.'}
-function showPublicWoods(){setBrowseSection('public');$('spotResults').innerHTML='';status('browseStatus','Chargement des bois publics à moins de 100 km…');searchSpots('nearby')}
+function openWoodChooser(){
+  state.browseSection='chooser';
+  var pub=$('publicWoodsTab'),mine=$('myWoodsTab'),content=$('browseContent');
+  if(pub)pub.classList.remove('active');
+  if(mine)mine.classList.remove('active');
+  if(content)content.classList.add('hidden');
+  if($('spotResults'))$('spotResults').innerHTML='';
+  status('browseStatus','');
+}
+function setBrowseSection(section){
+  state.browseSection=section==='my'?'my':'public';
+  var pub=$('publicWoodsTab'),mine=$('myWoodsTab'),refresh=$('nearbySpotsBtn'),title=$('browseModeTitle'),txt=$('browseModeText'),content=$('browseContent');
+  if(content)content.classList.remove('hidden');
+  if(pub)pub.classList.toggle('active',state.browseSection==='public');
+  if(mine)mine.classList.toggle('active',state.browseSection==='my');
+  if(refresh)refresh.classList.toggle('hidden',state.browseSection==='my');
+  if(title)title.textContent=state.browseSection==='public'?'Bois publics':'Mes bois';
+  if(txt)txt.innerHTML=state.browseSection==='public'?'<b>Tous les bois publics</b> à moins de 100 km, du plus près au plus loin.':'Vos <b>bois favoris</b>, vos bois enregistrés et les <b>bois reçus de vos amis</b>.';
+}
+function showPublicWoods(){setBrowseSection('public');$('spotResults').innerHTML='';status('browseStatus','Chargement de tous les bois publics à moins de 100 km…');searchSpots('nearby')}
 function showMyWoods(){setBrowseSection('my');var rows=mergeMyWoods();renderResults(rows,'nearby');status('browseStatus',rows.length?rows.length+' bois dans « Mes bois ».':'Aucun bois dans « Mes bois ». Ajoutez un favori ou ouvrez un bois envoyé par un ami.',rows.length?'ok':'')}
 function openVerifyWood(id){state.verifyTargetId=String(id||'');var m=$('verifyWoodModal');if(m)m.classList.remove('hidden')}
 function closeVerifyWood(){state.verifyTargetId='';var m=$('verifyWoodModal');if(m)m.classList.add('hidden')}
@@ -365,7 +383,7 @@ async function searchSpots(mode){
 $('speciesInput').addEventListener('input',function(){updateGuide();showSpeciesMatches();refreshSaveState()});
 $('addSpeciesBtn').onclick=function(){var inp=$('speciesInput'),v=clean(inp.value);if(v&&!/[,;+]\s*$/.test(v))inp.value=v+', ';inp.focus();showSpeciesMatches();};
 $('saveEditBtn').onclick=saveEdit;$('cancelEditBtn').onclick=function(){$('editSpotModal').classList.add('hidden')};if($('verifyPublicBtn'))$('verifyPublicBtn').onclick=function(){applyWoodVerification('public')};if($('verifyPrivateBtn'))$('verifyPrivateBtn').onclick=function(){applyWoodVerification('private')};if($('cancelVerifyBtn'))$('cancelVerifyBtn').onclick=closeVerifyWood;
-$('addSpotBtn').onclick=async function(){if(await requireRemoteAccess())openAddMode('add')};$('browseBtn').onclick=function(){show('browseView');$('spotResults').innerHTML='';if(state.justImportedSharedWood){state.justImportedSharedWood=false;showMyWoods()}else showPublicWoods()};$('backHome1').onclick=function(){stopCamera();show('homeView')};$('backHome2').onclick=function(){show('homeView')};$('nearbySpotsBtn').onclick=showPublicWoods;if($('publicWoodsTab'))$('publicWoodsTab').onclick=showPublicWoods;if($('myWoodsTab'))$('myWoodsTab').onclick=showMyWoods;
+$('addSpotBtn').onclick=async function(){if(await requireRemoteAccess())openAddMode('add')};$('browseBtn').onclick=function(){show('browseView');openWoodChooser()};$('backHome1').onclick=function(){stopCamera();show('homeView')};$('backHome2').onclick=function(){show('homeView')};$('nearbySpotsBtn').onclick=showPublicWoods;if($('publicWoodsTab'))$('publicWoodsTab').onclick=showPublicWoods;if($('myWoodsTab'))$('myWoodsTab').onclick=showMyWoods;
 $('locateBtn').onclick=async function(){var b=this;b.disabled=true;status('gpsStatus','Recherche du meilleur point GPS…');try{state.gps=await preciseGps();status('gpsStatus','✅ Bois localisé — précision '+Math.round(state.gps.accuracy)+' m.','ok');$('cameraBtn').disabled=false;status('photoStatus','✅ GPS du bois enregistré. Le bouton est bleu : prenez maintenant la photo du champignon non cueilli sur place.','ok')}catch(e){state.gps=null;$('cameraBtn').disabled=true;status('gpsStatus','❌ '+e.message,'bad')}finally{b.disabled=false}};
 $('cameraBtn').onclick=async function(){if(!state.gps)return;try{state.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:1280}}});$('cameraVideo').srcObject=state.stream;$('cameraBox').classList.add('open');status('photoStatus','Caméra ouverte — photographiez uniquement le champignon non cueilli, encore en terre.')}catch(e){status('photoStatus','❌ Impossible d’ouvrir la caméra. Autorisez la caméra dans les réglages du téléphone.','bad')}};
 $('closeCameraBtn').onclick=stopCamera;
