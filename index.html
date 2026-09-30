@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=38">
+<link rel="manifest" href="manifest.webmanifest?v=39">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=38">
+<link rel="stylesheet" href="champignons.css?v=39">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -16,7 +16,7 @@
   <h3>Que voulez-vous faire ?</h3>
   <div class="actions mushroomHomeActions">
     <button id="browseBtn" class="btn returnWoodHome">🌲 ALLER DANS UN BOIS<span>Tous les bois du plus près au plus loin, calculés depuis votre position sauvegardée</span></button>
-    <button id="addSpotBtn" class="btn addWoodHome">➕ AJOUTER UN BOIS<span>GPS + photo + reconnaissance du champignon</span></button>
+    <button id="addSpotBtn" class="btn addWoodHome">➕ AJOUTER UN BOIS<span>Position GPS ou adresse · photo obligatoire sauf administrateur</span></button>
     <button id="carBtn" class="btn carHome">🚗 ENREGISTRER LA VOITURE<span>Mémorise la position GPS exacte de votre auto</span></button>
   </div>
   <button id="carStatus" type="button" class="carSavedStatus" disabled>Aucun emplacement de voiture enregistré.</button>
@@ -24,9 +24,9 @@
 </section>
 <section id="addView" class="hidden">
   <div class="topBack"><button id="backHome1">← RETOUR</button><b id="addViewTitle">Ajouter un bois</b></div>
-<div class="panel"><h3>1. Localiser le bois</h3><p>Une fois dans le bois, appuyez sur le bouton pour enregistrer sa position. Aucune adresse ne sera affichée.</p><button id="locateBtn" class="btn">📍 LOCALISER LE BOIS</button><div id="gpsStatus" class="status">Appuyez sur « Localiser le bois ».</div></div>
-  <div class="panel"><h3>2. Photo du champignon</h3><p><b>Prenez la photo du champignon non cueilli, encore en terre.</b> Le GPS de la photo doit correspondre au GPS du bois.</p><button id="cameraBtn" class="btn photoReadyBtn" disabled>📷 PRENDRE LA PHOTO DU CHAMPIGNON</button><div id="cameraBox" class="camera"><video id="cameraVideo" playsinline autoplay muted></video><canvas id="cameraCanvas"></canvas><div class="cameraControls"><button id="captureBtn" class="btn">📸 PRENDRE LA PHOTO</button><button id="closeCameraBtn" class="btn secondary">FERMER</button></div></div><div id="photoStatus" class="status">Localisez d’abord le bois : ce bouton deviendra bleu.</div></div>
-  <div id="aiPanel" class="panel aiBox"><h3>3. Reconnaissance du champignon</h3><img id="photoPreview" class="previewImg" alt="Photo prise sur place"><div id="aiStatus" class="status">Analyse…</div><p class="recognitionSafety">ℹ️ La reconnaissance est indicative. Ne décidez jamais de consommer un champignon uniquement à partir de l’application.</p><div id="woodNameField" class="field"><label for="woodNameInput">Nom du bois (facultatif)</label><input id="woodNameInput" maxlength="140" autocomplete="off" placeholder="Ex. Forêt de Huelgoat"></div><div id="privateWoodField" class="woodCategoryField"><b>Catégorie du bois</b><div class="woodTypeChoices"><label class="woodTypeChoice public"><input id="publicWoodInput" name="woodType" type="radio" value="public"> 🌳 Bois public</label><label class="woodTypeChoice private"><input id="privateWoodInput" name="woodType" type="radio" value="private"> 🔒 Bois privé</label></div></div><div class="field"><label for="speciesInput">Quel(s) champignon(s) ?</label><p class="fieldHelp">L’IA ajoute le champignon reconnu. S’il y a plusieurs variétés dans ce bois, ajoutez-les aussi : tapez une virgule puis 1 ou 2 lettres et touchez la proposition.</p><input id="speciesInput" autocomplete="off" placeholder="Ex. Cèpe de Bordeaux, gi…"><button id="addSpeciesBtn" type="button" class="addSpeciesBtn">＋ AJOUTER UNE VARIÉTÉ</button><div id="speciesMatches" class="speciesMatches hidden"></div></div><div id="speciesGuide" class="guide"></div><div id="spotNoteField" class="field"><label for="spotNote">Commentaire (facultatif)</label><textarea id="spotNote" maxlength="500" placeholder="Ex. plusieurs cèpes dans les alentours, sous les chênes…"></textarea></div><button id="saveSpotBtn" class="btn" disabled>✅ ENREGISTRER LE BOIS</button><div id="saveStatus" class="status"></div></div>
+<div class="panel"><h3>1. Localiser le bois</h3><p>Choisissez votre position GPS sur place <b>ou</b> écrivez directement l’adresse du bois.</p><button id="locateBtn" class="btn">📍 UTILISER MA POSITION GPS</button><div class="locationOr">OU</div><div class="addressEntry"><label for="woodAddressInput">Adresse du bois</label><input id="woodAddressInput" type="text" maxlength="220" autocomplete="street-address" placeholder="Ex. Forêt de Paimpont, 35380 Paimpont"><button id="useAddressBtn" class="btn secondary" type="button">🔎 UTILISER CETTE ADRESSE</button></div><div id="gpsStatus" class="status">Utilisez le GPS ou écrivez l’adresse du bois.</div></div>
+  <div id="adminPhotoChoice" class="panel adminPhotoChoice hidden"><h3>2. Photo — Administrateur</h3><p>Avec le compte administrateur, vous choisissez si cette fiche aura une photo ou non.</p><div class="adminPhotoButtons"><button id="photoModeYes" type="button" class="btn selected">📷 AVEC PHOTO</button><button id="photoModeNo" type="button" class="btn secondary">🚫 SANS PHOTO</button></div></div><div id="photoPanel" class="panel"><h3>2. Photo du champignon</h3><p><b>Prenez la photo du champignon non cueilli, encore en terre.</b> Le GPS de la photo doit correspondre au GPS du bois.</p><button id="cameraBtn" class="btn photoReadyBtn" disabled>📷 PRENDRE LA PHOTO DU CHAMPIGNON</button><div id="cameraBox" class="camera"><video id="cameraVideo" playsinline autoplay muted></video><canvas id="cameraCanvas"></canvas><div class="cameraControls"><button id="captureBtn" class="btn">📸 PRENDRE LA PHOTO</button><button id="closeCameraBtn" class="btn secondary">FERMER</button></div></div><div id="photoStatus" class="status">Localisez d’abord le bois : ce bouton deviendra bleu.</div></div>
+  <div id="aiPanel" class="panel aiBox"><h3 id="step3Title">3. Reconnaissance du champignon</h3><img id="photoPreview" class="previewImg" alt="Photo prise sur place"><div id="aiStatus" class="status">Analyse…</div><p class="recognitionSafety">ℹ️ La reconnaissance est indicative. Ne décidez jamais de consommer un champignon uniquement à partir de l’application.</p><div id="woodNameField" class="field"><label for="woodNameInput">Nom du bois (facultatif)</label><input id="woodNameInput" maxlength="140" autocomplete="off" placeholder="Ex. Forêt de Huelgoat"></div><div id="privateWoodField" class="woodCategoryField"><b>Catégorie du bois</b><div class="woodTypeChoices"><label class="woodTypeChoice public"><input id="publicWoodInput" name="woodType" type="radio" value="public"> 🌳 Bois public</label><label class="woodTypeChoice private"><input id="privateWoodInput" name="woodType" type="radio" value="private"> 🔒 Bois privé</label></div></div><div class="field"><label for="speciesInput">Quel(s) champignon(s) ?</label><p class="fieldHelp">L’IA ajoute le champignon reconnu. S’il y a plusieurs variétés dans ce bois, ajoutez-les aussi : tapez une virgule puis 1 ou 2 lettres et touchez la proposition.</p><input id="speciesInput" autocomplete="off" placeholder="Ex. Cèpe de Bordeaux, gi…"><button id="addSpeciesBtn" type="button" class="addSpeciesBtn">＋ AJOUTER UNE VARIÉTÉ</button><div id="speciesMatches" class="speciesMatches hidden"></div></div><div id="speciesGuide" class="guide"></div><div id="spotNoteField" class="field"><label for="spotNote">Commentaire (facultatif)</label><textarea id="spotNote" maxlength="500" placeholder="Ex. plusieurs cèpes dans les alentours, sous les chênes…"></textarea></div><button id="saveSpotBtn" class="btn" disabled>✅ ENREGISTRER LE BOIS</button><div id="saveStatus" class="status"></div></div>
 </section>
 <section id="browseView" class="hidden">
   <div class="topBack browseTopBack"><button id="backHome2">← RETOUR</button><b>🌲 ALLER DANS UN BOIS</b></div>
@@ -117,11 +117,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=38"></script>
-<script src="champignons.js?v=38" defer></script>
+<script src="config.js?v=39"></script>
+<script src="champignons.js?v=39" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=38',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=39',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
