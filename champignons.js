@@ -215,7 +215,7 @@ function openAddMode(mode){resetAdd();setAddMode(mode);refreshAdminPhotoChoice()
 function closeSpotPhoto(){var m=$('spotPhotoModal');if(m)m.classList.add('hidden')}
 function openSpotPhoto(src,alt){var m=$('spotPhotoModal');if(!m){m=document.createElement('div');m.id='spotPhotoModal';m.className='spotPhotoModal hidden';m.innerHTML='<button type="button" class="spotPhotoClose" aria-label="Retour">← RETOUR</button><img class="spotPhotoLarge" alt="">';document.body.appendChild(m);m.onclick=function(e){if(e.target===m)closeSpotPhoto()};m.querySelector('.spotPhotoClose').onclick=closeSpotPhoto}var img=m.querySelector('.spotPhotoLarge');img.src=src;img.alt=alt||'';m.classList.remove('hidden')}
 
-var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v39',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
+var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v40',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
 function loadLocalSpots(){try{var a=JSON.parse(localStorage.getItem(LOCAL_SPOTS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
 function writeLocalSpots(rows){try{localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify((rows||[]).slice(0,60)));return true}catch(_){try{var light=(rows||[]).slice(0,40).map(function(s){var x=Object.assign({},s);if(String(x.photoUrl||'').indexOf('data:image/')===0)x.photoUrl='';return x});localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify(light));return true}catch(__){return false}}}
 function saveLocalSpot(spot){var rows=loadLocalSpots().filter(function(x){return String(x.id)!==String(spot.id)});rows.unshift(spot);writeLocalSpots(rows)}
@@ -317,9 +317,9 @@ function mushroomAiBase(){
 }
 function generatedPhotoFallback(species){
   var n=normSpecies(species||''),hasCepe=/(cepe|bolet)/.test(n),hasGirolle=/girolle/.test(n),hasChanterelle=/chanterelle/.test(n),hasTrompette=/trompette/.test(n),hasLactaire=/lactaire/.test(n);
-  if(hasCepe&&hasGirolle&&hasTrompette)return 'photos/cepe-girolle-trompette.jpg?v=39';
-  if(hasCepe&&hasLactaire&&hasChanterelle)return 'photos/cepes-lactaires-chanterelles.jpg?v=39';
-  if(hasCepe&&(hasGirolle||hasChanterelle)&&!hasTrompette&&!hasLactaire)return 'photos/cepes-girolles-chanterelles.jpg?v=39';
+  if(hasCepe&&hasGirolle&&hasTrompette)return 'photos/cepe-girolle-trompette.jpg?v=40';
+  if(hasCepe&&hasLactaire&&hasChanterelle)return 'photos/cepes-lactaires-chanterelles.jpg?v=40';
+  if(hasCepe&&(hasGirolle||hasChanterelle)&&!hasTrompette&&!hasLactaire)return 'photos/cepes-girolles-chanterelles.jpg?v=40';
   var refs=referenceMushroomPhotos(species);
   return refs.length?refs[0].thumb:''
 }
@@ -584,13 +584,123 @@ function shareWood(s){
   var m=$('shareWoodModal');if(m)m.classList.remove('hidden');
   loadShareMembers()
 }
+
+var VISIT_REPORT_LOCAL_KEY='mushroom_visit_reports_v1';
+function localYmd(date){var d=date||new Date(),y=d.getFullYear(),m=String(d.getMonth()+1).padStart(2,'0'),day=String(d.getDate()).padStart(2,'0');return y+'-'+m+'-'+day}
+function parseLocalDay(v){var m=String(v||'').match(/^(\d{4})-(\d{2})-(\d{2})$/);return m?new Date(Number(m[1]),Number(m[2])-1,Number(m[3])):null}
+function visitDayLabel(day){
+  var d=parseLocalDay(day);if(!d)return '';
+  var now=new Date(),today=new Date(now.getFullYear(),now.getMonth(),now.getDate()),diff=Math.round((today-d)/86400000),name=d.toLocaleDateString('fr-FR',{weekday:'long'});
+  if(diff===0)return name;
+  if(diff>=7&&diff<14)return name+' dernier';
+  if(diff>0&&diff<7)return name;
+  return diff===14?'il y a 2 semaines':name;
+}
+function visitorFirstName(){var x=identity()||{},n=clean(x.firstName||'');return n||'Moi'}
+function loadLocalVisitReports(){
+  try{var rows=JSON.parse(localStorage.getItem(VISIT_REPORT_LOCAL_KEY)||'[]');if(!Array.isArray(rows))rows=[];var cut=Date.now()-14*86400000;rows=rows.filter(function(x){return Number(x.reportedAt||0)>=cut});localStorage.setItem(VISIT_REPORT_LOCAL_KEY,JSON.stringify(rows));return rows}catch(_){return[]}
+}
+function saveLocalVisitReport(row){
+  var rows=loadLocalVisitReports().filter(function(x){return !(String(x.woodId)===String(row.woodId)&&String(x.deviceId)===String(row.deviceId)&&String(x.reportDay)===String(row.reportDay))});
+  rows.unshift(row);try{localStorage.setItem(VISIT_REPORT_LOCAL_KEY,JSON.stringify(rows.slice(0,300)))}catch(_){}
+}
+function visitRowsForWood(id){return loadLocalVisitReports().filter(function(x){return String(x.woodId)===String(id)})}
+function mergeVisitRows(a,b){
+  var map=new Map();(a||[]).concat(b||[]).forEach(function(x){if(!x)return;var k=[clean(x.reporterName),clean(x.result),clean(x.reportDay)].join('|');if(!map.has(k)||Number(x.reportedAt||0)>Number(map.get(k).reportedAt||0))map.set(k,x)});return Array.from(map.values()).sort(function(x,y){return Number(y.reportedAt||0)-Number(x.reportedAt||0)}).filter(function(x){return Date.now()-Number(x.reportedAt||0)<=14*86400000})
+}
+function renderVisitRows(id,rows){
+  var box=document.querySelector('[data-visit-list="'+CSS.escape(String(id))+'"]');if(!box)return;
+  rows=(rows||[]).slice(0,12);
+  if(!rows.length){box.innerHTML='<div class="visitReportNone">Aucun signalement durant les 2 dernières semaines.</div>';return}
+  box.innerHTML=rows.map(function(x){var found=x.result==='found';return '<div class="visitReportRow '+(found?'found':'empty')+'"><span>'+(found?'✅':'❌')+' '+esc(x.reporterName||'Personne inscrite')+'</span><span>'+esc(visitDayLabel(x.reportDay))+'</span></div>'}).join('')
+}
+async function loadVisitReportsForWood(id){
+  var local=visitRowsForWood(id),remote=[];
+  renderVisitRows(id,local);
+  try{var r=await fetch(mushroomAiBase()+'/api/visits?woodId='+encodeURIComponent(id),{cache:'no-store'}),j=await r.json();if(r.ok&&j&&Array.isArray(j.reports))remote=j.reports}catch(_){}
+  renderVisitRows(id,mergeVisitRows(remote,local))
+}
+async function reportWoodVisit(s,result,button){
+  if(!s||!s.id)return;
+  var row={woodId:String(s.id),deviceId:deviceId(),reporterName:visitorFirstName(),result:result==='found'?'found':'empty',species:clean(s.species||''),latitude:Number(s.latitude),longitude:Number(s.longitude),reportDay:localYmd(),reportedAt:Date.now()};
+  saveLocalVisitReport(row);renderVisitRows(s.id,visitRowsForWood(s.id));if(button)button.disabled=true;
+  try{
+    var r=await fetch(mushroomAiBase()+'/api/visits/report',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(row),cache:'no-store'}),j=await r.json().catch(function(){return{}});
+    if(!r.ok||!j.ok)throw new Error('serveur');
+    await loadVisitReportsForWood(s.id)
+  }catch(_){}
+  finally{if(button)button.disabled=false}
+}
+function observeVisitLists(){
+  var nodes=Array.from(document.querySelectorAll('[data-visit-list]:not([data-observed])'));
+  if(!('IntersectionObserver' in window)){nodes.forEach(function(x){x.dataset.observed='1';loadVisitReportsForWood(x.dataset.visitList)});return}
+  var io=new IntersectionObserver(function(entries){entries.forEach(function(e){if(e.isIntersecting){io.unobserve(e.target);e.target.dataset.observed='1';loadVisitReportsForWood(e.target.dataset.visitList)}})},{rootMargin:'500px 0px'});
+  nodes.forEach(function(x){x.dataset.observed='1';io.observe(x)})
+}
+var MUSHROOM_ALERT_PROFILES=[
+  {test:/cepe|boletus edulis/,name:'Cèpe de Bordeaux',scientific:'Boletus edulis',start:[6,15],end:[11,15],period:'mi-juin à mi-novembre',rain:12,tmin:8,tmax:20},
+  {test:/girolle|cantharellus cibarius/,name:'Girolle',scientific:'Cantharellus cibarius',start:[6,1],end:[11,15],period:'juin à mi-novembre',rain:10,tmin:9,tmax:21},
+  {test:/chanterelle en tube|craterellus tubaeformis/,name:'Chanterelle en tube',scientific:'Craterellus tubaeformis',start:[8,15],end:[12,15],period:'mi-août à mi-décembre',rain:12,tmin:6,tmax:18},
+  {test:/trompette|craterellus cornucopioides/,name:'Trompette-de-la-mort',scientific:'Craterellus cornucopioides',start:[8,15],end:[11,30],period:'mi-août à fin novembre',rain:12,tmin:7,tmax:18},
+  {test:/pied-de-mouton|hydnum repandum/,name:'Pied-de-mouton',scientific:'Hydnum repandum',start:[8,15],end:[12,15],period:'mi-août à mi-décembre',rain:10,tmin:6,tmax:18},
+  {test:/coulemelle|macrolepiota procera/,name:'Coulemelle',scientific:'Macrolepiota procera',start:[7,1],end:[11,15],period:'juillet à mi-novembre',rain:8,tmin:10,tmax:21},
+  {test:/lactaire délicieux|lactarius deliciosus/,name:'Lactaire délicieux',scientific:'Lactarius deliciosus',start:[7,15],end:[11,15],period:'mi-juillet à mi-novembre',rain:10,tmin:7,tmax:18},
+  {test:/morille|morchella/,name:'Morille',scientific:'Morchella esculenta',start:[3,1],end:[5,15],period:'mars à mi-mai',rain:7,tmin:5,tmax:16}
+];
+function seasonInfo(profile,date){
+  var d=date||new Date(),y=d.getFullYear(),start=new Date(y,profile.start[0]-1,profile.start[1]),end=new Date(y,profile.end[0]-1,profile.end[1]);
+  if(end<start&&d<start){start=new Date(y-1,profile.start[0]-1,profile.start[1])}if(end<start)end=new Date(start.getFullYear()+1,profile.end[0]-1,profile.end[1]);
+  var inSeason=d>=start&&d<=end,days=Math.ceil((end-d)/86400000);return{inSeason:inSeason,daysLeft:days,end:end}
+}
+function alertProfileForSpecies(species){var n=normSpecies(species||'');return MUSHROOM_ALERT_PROFILES.find(function(p){return p.test.test(n)})||null}
+function conditionsFavorProfile(p,w){if(!p||!w)return false;var si=seasonInfo(p,new Date()),t=Number(w.tempAvg),r=Number(w.rain7);return si.inSeason&&Number.isFinite(t)&&Number.isFinite(r)&&r>=p.rain&&t>=p.tmin&&t<=p.tmax}
+async function recentFoundNear(pos){
+  try{var r=await fetch(mushroomAiBase()+'/api/visits/recent-found?lat='+encodeURIComponent(pos.lat)+'&lon='+encodeURIComponent(pos.lon)+'&radius=100',{cache:'no-store'}),j=await r.json();return r.ok&&j&&Array.isArray(j.found)?j.found:[]}catch(_){return[]}
+}
+async function loadOfficialMushroomWeather(pos){
+  try{var r=await fetch(mushroomAiBase()+'/api/mushroom-weather?lat='+encodeURIComponent(pos.lat)+'&lon='+encodeURIComponent(pos.lon),{cache:'no-store'}),j=await r.json();return r.ok&&j&&j.ok?j.weather:null}catch(_){return null}
+}
+function chooseAlertProfile(weather,found){
+  var candidates=MUSHROOM_ALERT_PROFILES.filter(function(p){return conditionsFavorProfile(p,weather)});
+  if(!candidates.length)return null;
+  for(var i=0;i<(found||[]).length;i++){var p=alertProfileForSpecies(found[i].species);if(p&&candidates.indexOf(p)>=0)return p}
+  return candidates[0]
+}
+function matchingFinders(profile,found){
+  var seen={},rows=[];(found||[]).forEach(function(x){var p=alertProfileForSpecies(x.species);if(!p||p.name!==profile.name)return;var n=clean(x.reporterName||'');if(!n||seen[n.toLowerCase()])return;seen[n.toLowerCase()]=1;rows.push({name:n,day:x.reportDay})});return rows.slice(0,8)
+}
+async function showMushroomAlert(profile,weather,found){
+  var box=$('mushroomAlertBubble'),img=$('mushroomAlertPhoto');if(!box||!profile||!weather)return;
+  var si=seasonInfo(profile,new Date()),finders=matchingFinders(profile,found),urgent=si.daysLeft>=0&&si.daysLeft<=15;
+  $('mushroomAlertTitle').textContent=urgent?'🍄 BIENTÔT LA FIN DE SAISON':'🍄 BON MOMENT POUR LES CHAMPIGNONS';
+  $('mushroomAlertSpecies').textContent=profile.name;
+  var info=$('mushroomAlertInfo');info.classList.toggle('mushroomSeasonUrgent',urgent);
+  info.innerHTML='<b>✅ C’est la période habituelle du '+esc(profile.name)+'.</b>'+
+    '<span>📅 Période habituelle : '+esc(profile.period)+'.</span>'+
+    '<span>🌧️ Pluie sur les 7 derniers jours : '+Number(weather.rain7).toFixed(1).replace('.',',')+' mm.</span>'+
+    '<span>🌡️ Température moyenne récente : '+Number(weather.tempAvg).toFixed(1).replace('.',',')+' °C.</span>'+
+    '<span>📡 Source météo : Météo-France'+(weather.station?' — station '+esc(weather.station):'')+'.</span>'+
+    (urgent?'<b>⚠️ Plus qu’environ '+Math.max(0,si.daysLeft)+' jour'+(si.daysLeft>1?'s':'')+' avant la fin habituelle de la période : profitez-en pendant que les conditions sont bonnes.</b>':'<span>⏳ Environ '+Math.max(0,si.daysLeft)+' jours avant la fin habituelle de cette période.</span>');
+  var people=$('mushroomAlertPeople');
+  people.innerHTML=finders.length?'<b>✅ Des personnes en ont trouvé récemment :</b>'+finders.map(function(x){return '<span>🍄 '+esc(x.name)+(x.day?' — '+esc(visitDayLabel(x.day)):'')+'</span>'}).join(''):'<b>ℹ️ Aucun signalement récent « J’ai trouvé » autour de vous pour ce champignon.</b>';
+  img.removeAttribute('src');img.dataset.loaded='0';img.dataset.wiki=profile.scientific;img.alt='Vraie photo de '+profile.name;await wikiMushroomPhoto(img);
+  box.classList.remove('hidden');box.setAttribute('aria-hidden','false')
+}
+async function checkMushroomOpportunity(){
+  var entry=$('firstEntryGate'),unlock=$('unlockGate');if(entry&&!entry.classList.contains('hidden'))return;if(unlock&&!unlock.classList.contains('hidden'))return;
+  var pos=savedUserPosition();if(!pos)return;
+  var weather=await loadOfficialMushroomWeather(pos);if(!weather)return;
+  var found=await recentFoundNear(pos),profile=chooseAlertProfile(weather,found);if(!profile)return;
+  var key='mush_alert_seen_'+localYmd()+'_'+normSpecies(profile.name);try{if(sessionStorage.getItem(key)==='1')return;sessionStorage.setItem(key,'1')}catch(_){}
+  await showMushroomAlert(profile,weather,found)
+}
 function renderResults(spots,mode){
   var input=state.browseSection==='public'?filterPublicWoods(spots||[]):(spots||[]);
   state.spots=sortWoods(input,mode||'nearby');state.lastMode=mode||state.lastMode;
   var c=$('spotResults');if(!state.spots.length){c.innerHTML='<div class="empty">'+(state.browseSection==='my'?'Aucun bois enregistré dans « Mes bois ».':'Aucun bois public correspondant à moins de 100 km.')+'</div>';return}
   c.innerHTML=state.spots.map(function(s,idx){
     var imgLoad=idx<6?'eager':'lazy',imgPriority=idx<6?'high':'low',comboVisual=singleCombinationPhoto(s,idx),visual=comboVisual|| (s.isReferenceForest?referencePhotoGallery(s,idx):(s.photoUrl?'<img class="mushSpotPhoto" src="'+esc(s.photoUrl)+'" alt="'+esc(s.species)+'" loading="'+imgLoad+'" decoding="async" fetchpriority="'+imgPriority+'" tabindex="0" role="button">':'<div class="woodPlaceholder">🌲<small>BOIS ENREGISTRÉ</small></div>')),privacy=effectivePrivacy(s),woodStatus=privacy==='private'?'<span class="woodStatusPrivate">PRIVÉ</span>':privacy==='public'?'<span class="woodStatusPublic">PUBLIC</span>':'',verifyBtn=privacy==='unknown'?'<button class="verifyWood verifyWoodMain" data-id="'+esc(s.id)+'">VÉRIFIER<br><small>PUBLIC OU PRIVÉ ?</small></button>':'',d=Number(s.distanceKm),distance=Number.isFinite(d)?'<span class="woodDistanceBig">🎯 '+d.toFixed(1)+' km</span>':'<span class="woodDistanceBig">🎯 Distance à calculer</span>',detour=(mode==='route'&&s.detourKm!=null)?'<p class="spotMetaStrong">🛣️ Détour : '+Number(s.detourKm).toFixed(1)+' km</p>':'',fav=isFavoriteWood(s.id),favBtn='<button class="favoriteWood '+(fav?'active':'')+'" data-id="'+esc(s.id)+'" aria-label="'+(fav?'Retirer des favoris':'Ajouter aux favoris')+'">'+(fav?'★':'☆')+'</button>',shared=s.sharedReceived?'<span class="sharedWoodBadge">📨 REÇU'+(s.sharedFrom?' DE '+esc(s.sharedFrom).toUpperCase():' D’UN AMI')+'</span>':'',local=s.localSaved?'<span class="localWoodBadge">📱 MON BOIS</span>':'',note=(!s.isReferenceForest&&s.note)?'<p>💬 '+esc(s.note)+'</p>':'';
-    return '<article class="spot" data-wood-id="'+esc(s.id)+'">'+favBtn+'<div class="woodCityBig">📍 '+esc(s.city||'Ville en cours de recherche…')+'</div>'+visual+'<div><h4>'+esc(s.woodName||'Bois signalé')+'</h4>'+distance+shared+local+'<div class="woodStatusRow"><span class="woodStatusLabel">🌲 Bois :</span>'+woodStatus+verifyBtn+'</div><div class="woodVarieties"><b>🍄 Variétés dans ce bois :</b><span>'+esc(s.species||'À vérifier')+'</span></div>'+(privacy==='private'?'<p class="privateNotice">⚠️ Bois privé — autorisation du propriétaire obligatoire.</p>':'')+'<p>🗓️ Saison : '+esc(s.season||guide(s.species).season)+'</p><p>🌲 Où chercher : '+esc(s.habitat||guide(s.species).habitat)+'</p>'+(s.createdAt?'<p>📅 Signalé le '+fmtDate(s.createdAt)+'</p>':'')+detour+note+'</div><button class="btn goWood" data-lat="'+Number(s.latitude)+'" data-lon="'+Number(s.longitude)+'">🌲 ALLER À CE BOIS</button><button class="woodShare" data-id="'+esc(s.id)+'">📤 ENVOYER À UNE PERSONNE</button>'+(s.isReferenceForest?'':'<div class="spotActions"><button class="editSpot" data-id="'+esc(s.id)+'">✏️ MODIFIER</button><button class="deleteSpot" data-id="'+esc(s.id)+'">🗑️ DEMANDER LA SUPPRESSION'+(Number(s.deleteVotes||0)?' ('+Number(s.deleteVotes)+'/5)':'')+'</button></div>')+'</article>'
+    return '<article class="spot" data-wood-id="'+esc(s.id)+'">'+favBtn+'<div class="woodCityBig">📍 '+esc(s.city||'Ville en cours de recherche…')+'</div>'+visual+'<div><h4>'+esc(s.woodName||'Bois signalé')+'</h4>'+distance+shared+local+'<div class="woodStatusRow"><span class="woodStatusLabel">🌲 Bois :</span>'+woodStatus+verifyBtn+'</div><div class="woodVarieties"><b>🍄 Variétés dans ce bois :</b><span>'+esc(s.species||'À vérifier')+'</span></div>'+(privacy==='private'?'<p class="privateNotice">⚠️ Bois privé — autorisation du propriétaire obligatoire.</p>':'')+'<p>🗓️ Saison : '+esc(s.season||guide(s.species).season)+'</p><p>🌲 Où chercher : '+esc(s.habitat||guide(s.species).habitat)+'</p>'+(s.createdAt?'<p>📅 Signalé le '+fmtDate(s.createdAt)+'</p>':'')+detour+note+'</div><div class="visitReportBox"><div class="visitReportTitle">🍄 Vous êtes allé dans ce bois ?</div><div class="visitReportButtons"><button type="button" class="visitFoundBtn" data-id="'+esc(s.id)+'">✅ J’AI TROUVÉ</button><button type="button" class="visitEmptyBtn" data-id="'+esc(s.id)+'">❌ RIEN TROUVÉ</button></div><div class="visitReportList" data-visit-list="'+esc(s.id)+'"><div class="visitReportNone">Chargement des signalements récents…</div></div></div><button class="btn goWood" data-lat="'+Number(s.latitude)+'" data-lon="'+Number(s.longitude)+'">🌲 ALLER À CE BOIS</button><button class="woodShare" data-id="'+esc(s.id)+'">📤 ENVOYER À UNE PERSONNE</button>'+(s.isReferenceForest?'':'<div class="spotActions"><button class="editSpot" data-id="'+esc(s.id)+'">✏️ MODIFIER</button><button class="deleteSpot" data-id="'+esc(s.id)+'">🗑️ DEMANDER LA SUPPRESSION'+(Number(s.deleteVotes||0)?' ('+Number(s.deleteVotes)+'/5)':'')+'</button></div>')+'</article>'
   }).join('');
   Array.from(c.querySelectorAll('.generatedMushPhoto')).forEach(function(img){
     img.addEventListener('error',function(){
@@ -601,6 +711,9 @@ function renderResults(spots,mode){
     })
   });
   Array.from(c.querySelectorAll('.mushSpotPhoto')).forEach(function(img){img.onclick=function(){openSpotPhoto(img.src,img.alt)};img.onkeydown=function(e){if(e.key==='Enter'||e.key===' '){e.preventDefault();openSpotPhoto(img.src,img.alt)}}});
+  Array.from(c.querySelectorAll('.visitFoundBtn')).forEach(function(b){b.onclick=function(){var spot=state.spots.find(function(x){return String(x.id)===String(b.dataset.id)});reportWoodVisit(spot,'found',b)}});
+  Array.from(c.querySelectorAll('.visitEmptyBtn')).forEach(function(b){b.onclick=function(){var spot=state.spots.find(function(x){return String(x.id)===String(b.dataset.id)});reportWoodVisit(spot,'empty',b)}});
+  observeVisitLists();
   Array.from(c.querySelectorAll('.goWood')).forEach(function(b){b.onclick=function(){nav(Number(b.dataset.lat),Number(b.dataset.lon))}});
   Array.from(c.querySelectorAll('.woodShare')).forEach(function(b){b.onclick=function(){shareWood(state.spots.find(function(s){return String(s.id)===String(b.dataset.id)}))}});
   Array.from(c.querySelectorAll('.favoriteWood')).forEach(function(b){b.onclick=function(){toggleFavoriteWood(state.spots.find(function(s){return String(s.id)===String(b.dataset.id)}))}});
@@ -882,8 +995,10 @@ if($('saveMyPositionBtn'))$('saveMyPositionBtn').onclick=saveOrUpdateMyPosition;
 if($('installAppBtn'))$('installAppBtn').onclick=installStandalone;
 if($('installFromSettingsBtn'))$('installFromSettingsBtn').onclick=installStandalone;
 if($('closeInstallHelp'))$('closeInstallHelp').onclick=function(){$('installHelp').classList.add('hidden')};
+if($('mushroomAlertHomeBtn'))$('mushroomAlertHomeBtn').onclick=function(){var b=$('mushroomAlertBubble');if(b){b.classList.add('hidden');b.setAttribute('aria-hidden','true')}show('homeView')};
 Array.from(document.querySelectorAll('[data-gps]')).forEach(function(b){b.onclick=function(){localStorage.setItem('gps_pref',b.dataset.gps);refreshGpsPref()}});
 function refreshInstallButton(){var b=$('installAppBtn');if(!b)return;b.textContent=isStandaloneApp()?'INSTALLÉE':'INSTALLER'}
 window.addEventListener('appinstalled',refreshInstallButton);
+window.addEventListener('load',function(){setTimeout(checkMushroomOpportunity,2200)});
 window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&identityComplete())refreshAccountLinkStatus(true)});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');importSharedWoodFromUrl();try{var qp=new URLSearchParams(location.search);if(qp.get('champignons_confirmed')==='1'){localStorage.setItem(ONBOARDING_KEY,'1');history.replaceState(null,'',location.pathname)}}catch(_){}startEntryGate();
 })();
