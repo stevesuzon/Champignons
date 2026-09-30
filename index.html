@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=40">
+<link rel="manifest" href="manifest.webmanifest?v=41">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=40">
+<link rel="stylesheet" href="champignons.css?v=41">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -112,6 +112,25 @@
 </div>
   <div id="settingsLinkedFooter" class="settingsLinkedFooter">🍄 Application Champignons liée à Couteau Suisse</div>
 </div></div>
+<div id="visitConfirmModal" class="visitConfirmOverlay hidden" aria-hidden="true">
+  <div class="visitConfirmCard" role="dialog" aria-modal="true">
+    <h2 id="visitConfirmTitle">Confirmer votre signalement</h2>
+    <p id="visitConfirmText"></p>
+    <div class="visitConfirmActions">
+      <button id="visitConfirmYesBtn" type="button" class="btn">✅ CONFIRMER</button>
+      <button id="visitConfirmCancelBtn" type="button" class="btn secondary">ANNULER</button>
+    </div>
+  </div>
+</div>
+<div id="goWoodInfoModal" class="visitConfirmOverlay hidden" aria-hidden="true">
+  <div class="visitConfirmCard goWoodInfoCard" role="dialog" aria-modal="true">
+    <h2>🌲 Avant d’aller dans ce bois</h2>
+    <p>Voici les signalements des 2 dernières semaines :</p>
+    <div id="goWoodRecentReports" class="goWoodRecentReports"></div>
+    <button id="goWoodContinueBtn" type="button" class="btn">🧭 CONTINUER VERS LE GPS</button>
+    <button id="goWoodCancelBtn" type="button" class="btn secondary">ANNULER</button>
+  </div>
+</div>
 <div id="mushroomAlertBubble" class="mushroomAlertOverlay hidden" aria-hidden="true">
   <div class="mushroomAlertCard" role="dialog" aria-modal="true" aria-labelledby="mushroomAlertTitle">
     <div class="mushroomAlertBadge">🍄 BON MOMENT</div>
@@ -129,11 +148,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=40"></script>
-<script src="champignons.js?v=40" defer></script>
+<script src="config.js?v=41"></script>
+<script src="champignons.js?v=41" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=40',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=41',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
