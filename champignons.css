@@ -465,3 +465,5 @@
   .bigWoodTypeChoices{grid-template-columns:1fr!important}
   .woodStatusPublic,.woodStatusPrivate,.woodStatusHunting{font-size:16px!important;min-height:44px;padding:8px 11px}
 }
+
+.spotActions .adminEditSpot:only-child{grid-column:1/-1}
