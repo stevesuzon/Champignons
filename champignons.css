@@ -1295,3 +1295,51 @@
   #firstEntryGate.exactEntryOverlay{height:100vh!important;min-height:100vh!important}
   #firstEntryGate .exactEntryStage{height:max(100vh,177.683vw)!important}
 }
+
+/* V52 — notifications */
+.notificationSettingsPanel p{
+  line-height:1.35;
+}
+.notificationPermissionCard{
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+  margin:12px 0;
+  padding:14px;
+  border:2px solid #587967;
+  border-radius:15px;
+  background:#12301d;
+}
+.notificationPermissionCard b{
+  font-size:17px;
+}
+.notificationPermissionCard span{
+  font-size:14px;
+  line-height:1.35;
+  color:#dce8df;
+}
+.notificationPermissionCard.ok{
+  border-color:#54d878;
+  background:#103a20;
+}
+.notificationPermissionCard.bad{
+  border-color:#ef7b47;
+  background:#471b0e;
+}
+.notificationPermissionCard.off{
+  border-color:#728078;
+  background:#1d2b22;
+}
+.notificationSettingsPanel .btn{
+  width:100%;
+  margin-top:9px;
+}
+.notificationSettingsBtn{
+  background:#d86b28!important;
+  border-color:#ffb172!important;
+  color:#fff!important;
+}
+#notificationsMenuValue{
+  font-size:12px;
+  font-weight:900;
+}
