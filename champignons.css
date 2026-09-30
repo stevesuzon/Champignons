@@ -1215,3 +1215,36 @@
   .exactEntryField{border-radius:24px}
   .exactEntryButton{border-radius:34px}
 }
+
+/* V50 — plein ecran iPhone */
+#firstEntryGate.exactEntryOverlay{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  overflow:hidden!important;
+  align-items:center!important;
+  justify-content:center!important;
+  padding:0!important;
+  background:#03150b!important;
+}
+#firstEntryGate .exactEntryStage{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  transform:translate(-50%,-50%)!important;
+  width:max(100vw,56.25dvh)!important;
+  max-width:none!important;
+  height:auto!important;
+  aspect-ratio:9/16!important;
+  margin:0!important;
+  flex:none!important;
+}
+#firstEntryGate .exactEntryBackground{
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  background-size:100% 100%!important;
+  background-position:center!important;
+}
