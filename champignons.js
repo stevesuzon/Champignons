@@ -9,7 +9,7 @@ var state={gps:null,photo:null,analysis:null,stream:null,accessToken:'',spots:[]
 var FREE_UNTIL_CACHE_KEY='carplay_contest_app_free_until_ms';
 var TEMP_FREE_UNTIL_MS=Date.parse('2026-12-31T23:59:59+01:00');
 function temporaryFreeActive(){return Date.now()<=TEMP_FREE_UNTIL_MS}
-var ONBOARDING_KEY='champignons_onboarding_v6';
+var ONBOARDING_KEY='champignons_onboarding_v7';
 var CAR_POSITION_KEY='champignons_car_position_v1';
 var USER_POSITION_KEY='champignons_user_position_v1';
 function cachedTrialUntil(){var ms=0;try{ms=Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY)||0)}catch(_){}if(temporaryFreeActive())ms=Math.max(Number.isFinite(ms)?ms:0,TEMP_FREE_UNTIL_MS);return Number.isFinite(ms)&&ms>0?ms:0}
@@ -970,6 +970,16 @@ async function refreshAccountLinkStatus(silent){var x=identity()||{};if(!identit
 function startAccountWatch(){if(accountWatchTimer)clearInterval(accountWatchTimer);var left=75;accountWatchTimer=setInterval(async function(){left--;var ok=await refreshAccountLinkStatus(true);if(ok||left<=0){clearInterval(accountWatchTimer);accountWatchTimer=null}},4000)}
 async function saveCouteauAccount(){var last=clean($('accountLastName').value),first=clean($('accountFirstName').value),email=clean($('accountEmail').value).toLowerCase();if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('accountLinkStatus','❌ Nom, prénom et adresse e-mail valide sont obligatoires.','bad');return}var x=saveIdentityLocal({lastName:last,firstName:first,email:email}),b=$('saveCouteauAccountBtn');b.disabled=true;status('accountLinkStatus','Enregistrement et liaison avec Couteau Suisse…');try{var sr=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:email}),cache:'no-store'}),sj=await sr.json().catch(function(){return {}});if(sr.ok&&sj&&sj.verified){var known=responseIdentity(sj);if(!known||!sameCouteauIdentity({firstName:first,lastName:last,email:email},known))throw identityMismatchError();saveIdentityLocal(known);status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}var r=await fetch(API_BASE+'/api/app-identity/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:'champignons-'+identityPlatform(),firstName:first,lastName:last,email:email,sourceApp:'champignons',appName:'Champignons',emailBrand:'Champignons',emailSubject:'Champignons — confirmez votre adresse e-mail',redirectUrl:champignonsConfirmationUrl(),returnUrl:champignonsConfirmationUrl(),callbackUrl:champignonsConfirmationUrl()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(!r.ok||!j.ok)throw j;if(j.alreadyVerified){var already=responseIdentity(j);if(!already||!sameCouteauIdentity({firstName:first,lastName:last,email:email},already))throw identityMismatchError();saveIdentityLocal(already);status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}status('accountLinkStatus','📧 Un e-mail Champignons a été envoyé. Touchez le lien de confirmation : il vous renverra directement vers Champignons.','ok');startAccountWatch()}catch(e){var c=e&&e.error||'',m=c==='IDENTITE_DIFFERENTE'?'Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.':c==='EMAIL_TROP_RAPIDE'?'Un e-mail a déjà été envoyé récemment. Vérifiez votre boîte mail.':c==='QUOTA_EMAIL_JOURNALIER'?'Envoi d’e-mail momentanément indisponible. Réessayez plus tard.':'Impossible de lier le compte pour le moment.';status('accountLinkStatus','❌ '+m,'bad')}finally{b.disabled=false}}
 function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLastName').value=clean(x.lastName);if($('entryFirstName'))$('entryFirstName').value=clean(x.firstName);if($('entryEmail'))$('entryEmail').value=clean(x.email||localStorage.getItem('carplay_recovery_email')||'')}
+async function loadExactEntryBackground(){
+  var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
+  try{
+    var r=await fetch('assets/entry-bg.b64?v=49',{cache:'force-cache'});
+    if(!r.ok)throw new Error('image');
+    var b64=(await r.text()).replace(/\s+/g,'');
+    el.style.backgroundImage='url("data:image/webp;base64,'+b64+'")';
+    el.dataset.loaded='1'
+  }catch(e){el.classList.add('entryBgFallback')}
+}
 function setEntryGate(open){var g=$('firstEntryGate');if(!g)return;g.classList.toggle('hidden',!open);g.setAttribute('aria-hidden',open?'false':'true')}
 async function finishEntry(identityData){if(identityData)saveIdentityLocal(identityData);try{localStorage.setItem(ONBOARDING_KEY,'1');if(temporaryFreeActive())localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}setEntryGate(false);var ok=await checkAccess();refreshCarButton();refreshSavedPositionPanel();if(temporaryFreeActive()||ok){setUnlockGate(false);show('homeView')}else showUnlockGate()}
 var entryWatchTimer=null;
@@ -1048,6 +1058,7 @@ async function handleChampignonsConfirmationReturn(){
   status('entryStatus','E-mail confirmé. Vérification en cours…','ok');watchEntryVerification();return true
 }
 async function startEntryGate(){
+  await loadExactEntryBackground();
   fillEntryFields();
   if($('openCouteauSuisseBtn'))$('openCouteauSuisseBtn').href=COUTEAU_SUISSE_URL;
   if(temporaryFreeActive()){try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}setUnlockGate(false)}
