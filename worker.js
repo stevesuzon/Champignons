@@ -1,4 +1,4 @@
-const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","access-control-allow-origin":"*"};
+const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","access-control-allow-origin":"*","access-control-allow-methods":"GET,POST,OPTIONS","access-control-allow-headers":"content-type,x-mushroom-access"};
 
 function json(data,status=200){
   return new Response(JSON.stringify(data),{status,headers:JSON_HEADERS});
@@ -61,6 +61,36 @@ async function geocodeAddress(query){
 
 
 
+function cleanText(value,max=180){return String(value||'').replace(/\s+/g,' ').trim().slice(0,max)}
+function validWoodId(value){return cleanText(value,220).replace(/[^a-zA-Z0-9:_\-.]/g,'_')}
+function reportDayValue(value){return /^\d{4}-\d{2}-\d{2}$/.test(String(value||''))?String(value):new Date().toISOString().slice(0,10)}
+function twoWeekCutoff(){return Date.now()-14*24*60*60*1000}
+async function ensureVisitSchema(env){
+  if(!env.DB)throw new Error('DB_BINDING_MISSING');
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_visit_reports (id INTEGER PRIMARY KEY AUTOINCREMENT,wood_id TEXT NOT NULL,device_id TEXT NOT NULL,reporter_name TEXT NOT NULL,result TEXT NOT NULL,species TEXT,report_day TEXT NOT NULL,reported_at INTEGER NOT NULL,UNIQUE(wood_id,device_id,report_day))`).run();
+  try{await env.DB.prepare('ALTER TABLE mushroom_visit_reports ADD COLUMN species TEXT').run()}catch(_){}
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_visit_wood_date ON mushroom_visit_reports(wood_id,reported_at DESC)').run();
+}
+async function cleanupVisitReports(env){await env.DB.prepare('DELETE FROM mushroom_visit_reports WHERE reported_at < ?').bind(twoWeekCutoff()).run()}
+async function saveVisitReport(request,env){
+  await ensureVisitSchema(env);const body=await request.json().catch(()=>({}));
+  const woodId=validWoodId(body.woodId||body.id),deviceId=cleanText(body.deviceId,120),reporterName=(cleanText(body.reporterName,60).split(/\s+/)[0]||'').slice(0,40),result=body.result==='found'?'found':body.result==='empty'?'empty':'',species=cleanSpecies(body.species||''),reportDay=reportDayValue(body.reportDay),reportedAt=Date.now();
+  if(!woodId||!deviceId||!reporterName||!result)return json({ok:false,error:'PARAMETRES_MANQUANTS'},400);
+  await cleanupVisitReports(env);
+  await env.DB.prepare(`INSERT INTO mushroom_visit_reports(wood_id,device_id,reporter_name,result,species,report_day,reported_at) VALUES(?,?,?,?,?,?,?) ON CONFLICT(wood_id,device_id,report_day) DO UPDATE SET reporter_name=excluded.reporter_name,result=excluded.result,species=excluded.species,reported_at=excluded.reported_at`).bind(woodId,deviceId,reporterName,result,species,reportDay,reportedAt).run();
+  return json({ok:true});
+}
+async function listVisitReports(url,env){
+  await ensureVisitSchema(env);await cleanupVisitReports(env);const woodId=validWoodId(url.searchParams.get('woodId')||'');if(!woodId)return json({ok:false,error:'BOIS_MANQUANT'},400);
+  const rows=await env.DB.prepare(`SELECT reporter_name AS reporterName,result,species,report_day AS reportDay,reported_at AS reportedAt FROM mushroom_visit_reports WHERE wood_id=? AND reported_at>=? ORDER BY reported_at DESC LIMIT 80`).bind(woodId,twoWeekCutoff()).all();
+  return json({ok:true,reports:rows.results||[]});
+}
+async function recentFoundReports(env){
+  await ensureVisitSchema(env);await cleanupVisitReports(env);const since=Date.now()-7*24*60*60*1000;
+  const rows=await env.DB.prepare(`SELECT reporter_name AS reporterName,species,report_day AS reportDay,reported_at AS reportedAt FROM mushroom_visit_reports WHERE result='found' AND reported_at>=? ORDER BY reported_at DESC LIMIT 80`).bind(since).all();
+  const seen=new Set(),out=[];for(const row of rows.results||[]){const key=String(row.reporterName||'').toLowerCase()+'|'+String(row.species||'').toLowerCase();if(seen.has(key))continue;seen.add(key);out.push(row);if(out.length>=12)break}return json({ok:true,found:out});
+}
+
 function cleanSpecies(value){
   return String(value||'')
     .replace(/[^a-zA-ZÀ-ÿ0-9 ,;\-\/’']/g,' ')
@@ -104,6 +134,10 @@ async function mushroomPhotoResponse(env,species){
 export default {
   async fetch(request,env){
     const url=new URL(request.url);
+    if(request.method==='OPTIONS')return new Response(null,{status:204,headers:JSON_HEADERS});
+    if(url.pathname==='/api/visits/report'&&request.method==='POST'){try{return await saveVisitReport(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/visits'&&request.method==='GET'){try{return await listVisitReports(url,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/visits/recent-found'&&request.method==='GET'){try{return await recentFoundReports(env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/mushroom-photo'&&request.method==='GET'){
       const species=cleanSpecies(url.searchParams.get('species'));
       if(!species)return json({ok:false,error:'VARIETES_MANQUANTES'},400);
