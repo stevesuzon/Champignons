@@ -467,3 +467,63 @@
 }
 
 .spotActions .adminEditSpot:only-child{grid-column:1/-1}
+
+/* V43 — fiche epuree */
+.woodStatusRow{
+  display:grid!important;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px!important;
+  margin:10px 0 14px!important
+}
+.woodStatusRow .verifyWood{grid-column:1/-1}
+.woodStatusPublic,.woodStatusPrivate,.woodStatusHunting{
+  width:100%;
+  min-height:58px!important;
+  padding:10px 12px!important;
+  font-size:19px!important;
+  text-align:center
+}
+.woodStatusRow>span:only-child{grid-column:1/-1}
+.woodSeasonMain,.woodWhereMain{
+  margin:12px 0;
+  padding:14px;
+  border-radius:15px;
+  background:#102219;
+  border:1px solid #31543e
+}
+.woodSeasonMain b,.woodWhereMain b{
+  display:block;
+  font-size:20px;
+  line-height:1.05;
+  margin-bottom:7px;
+  color:#fff
+}
+.woodSeasonMain span,.woodWhereMain span{
+  display:block;
+  font-size:20px;
+  line-height:1.25;
+  font-weight:900;
+  color:#dfeee3
+}
+.visitReportBox{margin-top:14px!important;padding:14px!important;border:2px solid #31543e!important;border-radius:16px;background:#0d1d13}
+.visitReportTitle{text-align:center;font-size:18px!important;margin-bottom:11px!important}
+.visitReportButtons button{min-height:58px!important;font-size:17px!important}
+.visitMyAnswer{
+  display:grid;
+  gap:8px;
+  text-align:center;
+  padding:14px;
+  border-radius:14px;
+  border:2px solid #4a6d55;
+  background:#0b1810
+}
+.visitMyAnswer b{font-size:19px}
+.visitMyAnswer span{font-size:17px;font-weight:900}
+.visitMyAnswer.found{border-color:#38a95f;background:#0f301c}
+.visitMyAnswer.empty{border-color:#a94a4a;background:#321313}
+@media(max-width:430px){
+  .woodStatusRow{grid-template-columns:1fr 1fr!important}
+  .woodStatusPublic,.woodStatusPrivate,.woodStatusHunting{font-size:16px!important;min-height:54px!important}
+  .woodSeasonMain b,.woodWhereMain b{font-size:19px}
+  .woodSeasonMain span,.woodWhereMain span{font-size:18px}
+}
