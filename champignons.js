@@ -856,7 +856,10 @@ async function checkMushroomOpportunity(){
   var weather=await loadOfficialMushroomWeather(pos);if(!weather)return;
   var found=await recentFoundNear(pos),profile=chooseAlertProfile(weather,found);if(!profile)return;
   var key='mush_alert_seen_'+localYmd()+'_'+normSpecies(profile.name);try{if(sessionStorage.getItem(key)==='1')return;sessionStorage.setItem(key,'1')}catch(_){}
-  await showMushroomAlert(profile,weather,found)
+  await showMushroomAlert(profile,weather,found);
+  var si=seasonInfo(profile,new Date()),urgent=si.daysLeft>=0&&si.daysLeft<=15;
+  var notifBody=(urgent?'Plus qu’environ '+Math.max(0,si.daysLeft)+' jours avant la fin habituelle de saison. ':'Les conditions sont favorables en ce moment. ')+profile.name+'.';
+  await showChampignonsNotification(urgent?'🍄 Bientôt la fin de saison':'🍄 Bon moment pour les champignons',notifBody,'mushroom-'+normSpecies(profile.name)+'-'+localYmd())
 }
 function renderResults(spots,mode){
   var normalized=(spots||[]).map(applyAdminWoodOverride),input=state.browseSection==='public'?filterPublicWoods(normalized):normalized;
