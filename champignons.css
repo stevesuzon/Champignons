@@ -1343,3 +1343,63 @@
   font-size:12px;
   font-weight:900;
 }
+
+/* V53 — alertes météo/champignons plein écran */
+#mushroomAlertBubble.mushroomAlertOverlay{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  padding:0!important;
+  margin:0!important;
+  background:#06120a!important;
+  overflow:auto!important;
+  align-items:stretch!important;
+  justify-content:stretch!important;
+  z-index:9000!important;
+}
+#mushroomAlertBubble .mushroomAlertCard{
+  width:100%!important;
+  max-width:none!important;
+  min-height:100dvh!important;
+  margin:0!important;
+  padding:max(18px,env(safe-area-inset-top)) 16px max(18px,env(safe-area-inset-bottom))!important;
+  border:0!important;
+  border-radius:0!important;
+  box-shadow:none!important;
+  background:
+    radial-gradient(circle at 50% 0%,rgba(48,117,66,.36),transparent 38%),
+    linear-gradient(180deg,#153a22 0%,#0a2012 55%,#06130b 100%)!important;
+}
+#mushroomAlertBubble .mushroomAlertBadge{
+  font-size:15px!important;
+  padding:9px 15px!important;
+}
+#mushroomAlertBubble .mushroomAlertPhoto{
+  height:min(31dvh,300px)!important;
+  border-radius:20px!important;
+}
+#mushroomAlertBubble .mushroomAlertCard h2{
+  font-size:clamp(28px,7vw,38px)!important;
+}
+#mushroomAlertBubble .mushroomAlertSpecies{
+  font-size:clamp(22px,5.8vw,30px)!important;
+}
+#mushroomAlertBubble .mushroomAlertInfo,
+#mushroomAlertBubble .mushroomAlertPeople{
+  font-size:16px!important;
+  padding:14px!important;
+  border-radius:17px!important;
+}
+#mushroomAlertBubble .mushroomAlertHomeBtn{
+  min-height:66px!important;
+  margin-top:18px!important;
+  position:sticky;
+  bottom:max(8px,env(safe-area-inset-bottom));
+  box-shadow:0 8px 24px rgba(0,0,0,.45);
+}
+@supports not (height:100dvh){
+  #mushroomAlertBubble.mushroomAlertOverlay,
+  #mushroomAlertBubble .mushroomAlertCard{height:100vh!important;min-height:100vh!important}
+}
