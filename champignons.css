@@ -527,3 +527,137 @@
   .woodSeasonMain b,.woodWhereMain b{font-size:19px}
   .woodSeasonMain span,.woodWhereMain span{font-size:18px}
 }
+
+/* V44 — fiches compactes */
+.woodGrid{gap:7px!important}
+.woodGrid .spot{
+  padding:6px!important;
+  border-radius:13px!important;
+}
+.woodGrid .woodCityBig{
+  margin:0 0 5px!important;
+  padding:5px 5px!important;
+  font-size:15px!important;
+  line-height:1.05!important;
+  border-radius:10px!important;
+}
+.woodGrid .mushSpotPhoto,
+.woodGrid .spot>img,
+.woodGrid .woodPlaceholder{
+  height:82px!important;
+  margin:0 0 5px!important;
+  border-radius:10px!important;
+}
+.woodGrid .spot h4{
+  margin:2px 0 3px!important;
+  font-size:15px!important;
+  line-height:1.05!important;
+}
+.woodGrid .woodDistanceBig{
+  margin:2px 0!important;
+  padding:3px 5px!important;
+  font-size:12px!important;
+}
+.woodGrid .woodVarieties{
+  margin:5px 0 6px!important;
+  padding:5px 3px!important;
+}
+.woodGrid .woodVarieties b{
+  margin-bottom:2px!important;
+  font-size:14px!important;
+  line-height:1.05!important;
+}
+.woodGrid .woodVarieties span{
+  font-size:15px!important;
+  line-height:1.08!important;
+}
+.woodGrid .woodStatusRow{
+  gap:5px!important;
+  margin:5px 0 6px!important;
+}
+.woodGrid .woodStatusPublic,
+.woodGrid .woodStatusPrivate,
+.woodGrid .woodStatusHunting{
+  min-height:38px!important;
+  padding:5px 6px!important;
+  border-radius:10px!important;
+  font-size:13px!important;
+  line-height:1.05!important;
+}
+.woodGrid .woodSeasonMain,
+.woodGrid .woodWhereMain{
+  margin:5px 0!important;
+  padding:7px!important;
+  border-radius:10px!important;
+}
+.woodGrid .woodSeasonMain b,
+.woodGrid .woodWhereMain b{
+  margin-bottom:3px!important;
+  font-size:14px!important;
+}
+.woodGrid .woodSeasonMain span,
+.woodGrid .woodWhereMain span{
+  font-size:14px!important;
+  line-height:1.12!important;
+}
+.woodGrid .visitReportBox{
+  margin-top:6px!important;
+  padding:7px!important;
+  border-radius:11px!important;
+}
+.woodGrid .visitReportTitle{
+  margin-bottom:5px!important;
+  font-size:13px!important;
+}
+.woodGrid .visitReportButtons{gap:5px!important}
+.woodGrid .visitReportButtons button{
+  min-height:40px!important;
+  padding:5px!important;
+  border-radius:9px!important;
+  font-size:13px!important;
+}
+.woodGrid .visitMyAnswer{
+  gap:3px!important;
+  padding:7px!important;
+  border-radius:9px!important;
+}
+.woodGrid .visitMyAnswer b{font-size:13px!important}
+.woodGrid .visitMyAnswer span{font-size:12px!important}
+.woodGrid .spot .btn,
+.woodGrid .woodShare{
+  min-height:39px!important;
+  margin-top:5px!important;
+  padding:5px!important;
+  font-size:11px!important;
+  border-radius:9px!important;
+}
+.woodGrid .spotActions{
+  gap:4px!important;
+  margin-top:4px!important;
+}
+.woodGrid .spotActions button{
+  min-height:36px!important;
+  padding:5px!important;
+  font-size:10px!important;
+  border-radius:9px!important;
+}
+.woodGrid .favoriteWood{
+  top:34px!important;
+  right:8px!important;
+  width:34px!important;
+  height:34px!important;
+  font-size:21px!important;
+}
+@media(max-width:390px){
+  .woodGrid{gap:5px!important}
+  .woodGrid .spot{padding:5px!important}
+  .woodGrid .woodCityBig{font-size:14px!important}
+  .woodGrid .mushSpotPhoto,
+  .woodGrid .spot>img,
+  .woodGrid .woodPlaceholder{height:74px!important}
+  .woodGrid .woodStatusPublic,
+  .woodGrid .woodStatusPrivate,
+  .woodGrid .woodStatusHunting{font-size:12px!important;min-height:36px!important}
+  .woodGrid .woodSeasonMain span,
+  .woodGrid .woodWhereMain span{font-size:13px!important}
+}
