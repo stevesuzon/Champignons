@@ -817,12 +817,40 @@ function seasonInfo(profile,date){
   var inSeason=d>=start&&d<=end,days=Math.ceil((end-d)/86400000);return{inSeason:inSeason,daysLeft:days,end:end}
 }
 function alertProfileForSpecies(species){var n=normSpecies(species||'');return MUSHROOM_ALERT_PROFILES.find(function(p){return p.test.test(n)})||null}
-function conditionsFavorProfile(p,w){if(!p||!w)return false;var si=seasonInfo(p,new Date()),t=Number(w.tempAvg),r=Number(w.rain7);return si.inSeason&&Number.isFinite(t)&&Number.isFinite(r)&&r>=p.rain&&t>=p.tmin&&t<=p.tmax}
+function conditionsFavorProfile(p,w){
+  if(!p||!w)return false;
+  var si=seasonInfo(p,new Date()),t=Number(w.tempAvg),today=Number(w.tempToday),tomorrow=Number(w.tempTomorrow),r=Number(w.rain7),rt=Number(w.rainToday),rm=Number(w.rainTomorrow);
+  if(!Number.isFinite(t))t=Number.isFinite(today)?today:tomorrow;
+  var tempOk=Number.isFinite(t)&&t>=p.tmin&&t<=p.tmax;
+  var wetNow=Number.isFinite(r)&&r>=p.rain;
+  var rainSoon=(Number.isFinite(rt)&&rt>=2)||(Number.isFinite(rm)&&rm>=2)||(Number(rt||0)+Number(rm||0)>=4);
+  return si.inSeason&&tempOk&&(wetNow||rainSoon)
+}
 async function recentFoundNear(pos){
   try{var r=await fetch(mushroomAiBase()+'/api/visits/recent-found?lat='+encodeURIComponent(pos.lat)+'&lon='+encodeURIComponent(pos.lon)+'&radius=100',{cache:'no-store'}),j=await r.json();return r.ok&&j&&Array.isArray(j.found)?j.found:[]}catch(_){return[]}
 }
+async function loadMushroomForecast(pos){
+  try{
+    var u='https://api.open-meteo.com/v1/forecast?latitude='+encodeURIComponent(pos.lat)+'&longitude='+encodeURIComponent(pos.lon)+'&daily=precipitation_sum,temperature_2m_mean,temperature_2m_min,temperature_2m_max&timezone=auto&forecast_days=7';
+    var r=await fetch(u,{cache:'no-store'}),j=await r.json();
+    var d=j&&j.daily||{},rain=Array.isArray(d.precipitation_sum)?d.precipitation_sum:[],tm=Array.isArray(d.temperature_2m_mean)?d.temperature_2m_mean:[];
+    if(!r.ok||!rain.length)return null;
+    return{
+      forecastSource:'Open-Meteo',
+      rainToday:Number(rain[0]||0),
+      rainTomorrow:Number(rain[1]||0),
+      rainNext3:Number((rain.slice(0,3)).reduce(function(a,b){return a+Number(b||0)},0).toFixed(1)),
+      tempToday:Number.isFinite(Number(tm[0]))?Number(tm[0]):null,
+      tempTomorrow:Number.isFinite(Number(tm[1]))?Number(tm[1]):null
+    }
+  }catch(_){return null}
+}
 async function loadOfficialMushroomWeather(pos){
-  try{var r=await fetch(mushroomAiBase()+'/api/mushroom-weather?lat='+encodeURIComponent(pos.lat)+'&lon='+encodeURIComponent(pos.lon),{cache:'no-store'}),j=await r.json();return r.ok&&j&&j.ok?j.weather:null}catch(_){return null}
+  var recent=null,forecast=null;
+  try{var rr=await fetch(mushroomAiBase()+'/api/mushroom-weather?lat='+encodeURIComponent(pos.lat)+'&lon='+encodeURIComponent(pos.lon),{cache:'no-store'}),rj=await rr.json();if(rr.ok&&rj&&rj.ok)recent=rj.weather}catch(_){}
+  forecast=await loadMushroomForecast(pos);
+  if(!recent&&!forecast)return null;
+  return Object.assign({},recent||{source:'Météo-France',rain7:0,tempAvg:forecast&&(forecast.tempToday!=null?forecast.tempToday:forecast.tempTomorrow)},forecast||{})
 }
 function chooseAlertProfile(weather,found){
   var candidates=MUSHROOM_ALERT_PROFILES.filter(function(p){return conditionsFavorProfile(p,weather)});
@@ -833,18 +861,49 @@ function chooseAlertProfile(weather,found){
 function matchingFinders(profile,found){
   var seen={},rows=[];(found||[]).forEach(function(x){var p=alertProfileForSpecies(x.species);if(!p||p.name!==profile.name)return;var n=clean(x.reporterName||'');if(!n||seen[n.toLowerCase()])return;seen[n.toLowerCase()]=1;rows.push({name:n,day:x.reportDay})});return rows.slice(0,8)
 }
+function moonPhaseInfo(date){
+  var d=date||new Date(),syn=29.53058867,ref=Date.UTC(2000,0,6,18,14),age=((d.getTime()-ref)/86400000)%syn;if(age<0)age+=syn;
+  var name=age<1.85?'Nouvelle lune':age<5.54?'Premier croissant':age<9.23?'Premier quartier':age<12.92?'Lune gibbeuse croissante':age<16.61?'Pleine lune':age<20.30?'Lune gibbeuse décroissante':age<23.99?'Dernier quartier':age<27.68?'Dernier croissant':'Nouvelle lune';
+  return{name:name,age:age}
+}
+function weatherAlertKind(profile,w){
+  var si=seasonInfo(profile,new Date()),r7=Number(w.rain7||0),rt=Number(w.rainToday||0),rm=Number(w.rainTomorrow||0);
+  if(si.daysLeft>=0&&si.daysLeft<=15)return 'ending';
+  if(rt>=2)return 'rain_today';
+  if(rm>=2)return 'rain_tomorrow';
+  if(r7>=profile.rain)return 'favorable';
+  return 'watch'
+}
 async function showMushroomAlert(profile,weather,found){
   var box=$('mushroomAlertBubble'),img=$('mushroomAlertPhoto');if(!box||!profile||!weather)return;
-  var si=seasonInfo(profile,new Date()),finders=matchingFinders(profile,found),urgent=si.daysLeft>=0&&si.daysLeft<=15;
-  $('mushroomAlertTitle').textContent=urgent?'🍄 BIENTÔT LA FIN DE SAISON':'🍄 BON MOMENT POUR LES CHAMPIGNONS';
+  var si=seasonInfo(profile,new Date()),finders=matchingFinders(profile,found),kind=weatherAlertKind(profile,weather),moon=moonPhaseInfo(new Date()),urgent=kind==='ending';
+  var titles={
+    ending:'🍄 BIENTÔT LA FIN DE SAISON',
+    rain_today:'🌧️ IL PLEUT AUJOURD’HUI — À SURVEILLER',
+    rain_tomorrow:'🌧️ PLUIE DEMAIN — À SURVEILLER',
+    favorable:'🍄 BON MOMENT POUR LES CHAMPIGNONS',
+    watch:'🍄 CONDITIONS À SURVEILLER'
+  };
+  $('mushroomAlertTitle').textContent=titles[kind]||titles.watch;
   $('mushroomAlertSpecies').textContent=profile.name;
   var info=$('mushroomAlertInfo');info.classList.toggle('mushroomSeasonUrgent',urgent);
-  info.innerHTML='<b>✅ C’est la période habituelle du '+esc(profile.name)+'.</b>'+
+  var rain7=Number(weather.rain7||0),rainToday=Number(weather.rainToday||0),rainTomorrow=Number(weather.rainTomorrow||0),temp=Number(weather.tempAvg),tempToday=Number(weather.tempToday);
+  var tempShown=Number.isFinite(temp)?temp:(Number.isFinite(tempToday)?tempToday:null);
+  var lead=kind==='rain_today'
+    ?'🌧️ La pluie d’aujourd’hui peut rendre les conditions plus favorables dans les prochains jours.'
+    :kind==='rain_tomorrow'
+      ?'🌧️ De la pluie est prévue demain : surveillez les jours qui suivent.'
+      :kind==='ending'
+        ?'⏳ La période habituelle touche bientôt à sa fin.'
+        :'✅ La pluie, la température et la saison sont actuellement compatibles avec une pousse possible.';
+  info.innerHTML='<b>'+lead+'</b>'+
     '<span>📅 Période habituelle : '+esc(profile.period)+'.</span>'+
-    '<span>🌧️ Pluie sur les 7 derniers jours : '+Number(weather.rain7).toFixed(1).replace('.',',')+' mm.</span>'+
-    '<span>🌡️ Température moyenne récente : '+Number(weather.tempAvg).toFixed(1).replace('.',',')+' °C.</span>'+
-    '<span>📡 Source météo : Météo-France'+(weather.station?' — station '+esc(weather.station):'')+'.</span>'+
-    (urgent?'<b>⚠️ Plus qu’environ '+Math.max(0,si.daysLeft)+' jour'+(si.daysLeft>1?'s':'')+' avant la fin habituelle de la période : profitez-en pendant que les conditions sont bonnes.</b>':'<span>⏳ Environ '+Math.max(0,si.daysLeft)+' jours avant la fin habituelle de cette période.</span>');
+    '<span>🌧️ Pluie observée sur les 7 derniers jours : '+rain7.toFixed(1).replace('.',',')+' mm.</span>'+
+    '<span>☔ Aujourd’hui : '+rainToday.toFixed(1).replace('.',',')+' mm prévus · demain : '+rainTomorrow.toFixed(1).replace('.',',')+' mm prévus.</span>'+
+    (tempShown!=null?'<span>🌡️ Température de référence : '+Number(tempShown).toFixed(1).replace('.',',')+' °C.</span>':'')+
+    '<span>📡 Observations récentes : Météo-France'+(weather.station?' — station '+esc(weather.station):'')+'. Prévisions : '+esc(weather.forecastSource||'service météo')+'.</span>'+
+    '<span>🌙 Lune : '+esc(moon.name)+' — information seulement, elle ne déclenche pas l’alerte à elle seule.</span>'+
+    (urgent?'<b>⚠️ Environ '+Math.max(0,si.daysLeft)+' jour'+(si.daysLeft>1?'s':'')+' avant la fin habituelle de la période.</b>':'<span>⏳ Environ '+Math.max(0,si.daysLeft)+' jours avant la fin habituelle de cette période.</span>');
   var people=$('mushroomAlertPeople');
   people.innerHTML=finders.length?'<b>✅ Des personnes en ont trouvé récemment :</b>'+finders.map(function(x){return '<span>🍄 '+esc(x.name)+(x.day?' — '+esc(visitDayLabel(x.day)):'')+'</span>'}).join(''):'<b>ℹ️ Aucun signalement récent « J’ai trouvé » autour de vous pour ce champignon.</b>';
   img.removeAttribute('src');img.dataset.loaded='0';img.dataset.wiki=profile.scientific;img.alt='Vraie photo de '+profile.name;await wikiMushroomPhoto(img);
@@ -855,11 +914,12 @@ async function checkMushroomOpportunity(){
   var pos=savedUserPosition();if(!pos)return;
   var weather=await loadOfficialMushroomWeather(pos);if(!weather)return;
   var found=await recentFoundNear(pos),profile=chooseAlertProfile(weather,found);if(!profile)return;
-  var key='mush_alert_seen_'+localYmd()+'_'+normSpecies(profile.name);try{if(sessionStorage.getItem(key)==='1')return;sessionStorage.setItem(key,'1')}catch(_){}
+  var kind=weatherAlertKind(profile,weather),key='mush_alert_seen_'+localYmd()+'_'+kind+'_'+normSpecies(profile.name);
+  try{if(sessionStorage.getItem(key)==='1')return;sessionStorage.setItem(key,'1')}catch(_){}
   await showMushroomAlert(profile,weather,found);
-  var si=seasonInfo(profile,new Date()),urgent=si.daysLeft>=0&&si.daysLeft<=15;
-  var notifBody=(urgent?'Plus qu’environ '+Math.max(0,si.daysLeft)+' jours avant la fin habituelle de saison. ':'Les conditions sont favorables en ce moment. ')+profile.name+'.';
-  await showChampignonsNotification(urgent?'🍄 Bientôt la fin de saison':'🍄 Bon moment pour les champignons',notifBody,'mushroom-'+normSpecies(profile.name)+'-'+localYmd())
+  var si=seasonInfo(profile,new Date()),title=kind==='rain_today'?'🌧️ Pluie aujourd’hui — champignons':kind==='rain_tomorrow'?'🌧️ Pluie demain — champignons':kind==='ending'?'🍄 Bientôt la fin de saison':'🍄 Bon moment à surveiller';
+  var body=kind==='rain_today'?'La pluie peut rendre les prochains jours plus favorables pour '+profile.name+'.':kind==='rain_tomorrow'?'De la pluie est prévue demain. Surveillez les jours suivants pour '+profile.name+'.':kind==='ending'?'Environ '+Math.max(0,si.daysLeft)+' jours avant la fin habituelle de la période du '+profile.name+'.':'Conditions météo et saison compatibles avec une pousse possible de '+profile.name+'.';
+  await showChampignonsNotification(title,body,'mushroom-'+kind+'-'+normSpecies(profile.name)+'-'+localYmd())
 }
 function renderResults(spots,mode){
   var normalized=(spots||[]).map(applyAdminWoodOverride),input=state.browseSection==='public'?filterPublicWoods(normalized):normalized;
@@ -1059,7 +1119,7 @@ function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLa
 async function loadExactEntryBackground(){
   var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
   try{
-    var r=await fetch('assets/entry-bg.b64?v=52',{cache:'force-cache'});
+    var r=await fetch('assets/entry-bg.b64?v=53',{cache:'force-cache'});
     if(!r.ok)throw new Error('image');
     var b64=(await r.text()).replace(/\s+/g,'');
     el.style.backgroundImage='url("data:image/webp;base64,'+b64+'")';
