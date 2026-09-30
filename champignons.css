@@ -1248,3 +1248,50 @@
   background-size:100% 100%!important;
   background-position:center!important;
 }
+
+/* V50 — image exacte plein ecran */
+#firstEntryGate.exactEntryOverlay{
+  position:fixed!important;
+  inset:0!important;
+  width:100vw!important;
+  height:100dvh!important;
+  min-height:100dvh!important;
+  padding:0!important;
+  margin:0!important;
+  overflow:hidden!important;
+  background:#03150b!important;
+  align-items:center!important;
+  justify-content:center!important;
+}
+#firstEntryGate .exactEntryStage{
+  position:absolute!important;
+  left:50%!important;
+  top:50%!important;
+  height:max(100dvh,177.683vw)!important;
+  width:auto!important;
+  aspect-ratio:941/1672!important;
+  margin:0!important;
+  transform:translate(-50%,-50%)!important;
+  overflow:hidden!important;
+  background:#071d0e!important;
+}
+#firstEntryGate .exactEntryBackground{
+  position:absolute!important;
+  inset:0!important;
+  width:100%!important;
+  height:100%!important;
+  background-image:url('assets/entry-bg.svg')!important;
+  background-position:center center!important;
+  background-repeat:no-repeat!important;
+  background-size:100% 100%!important;
+}
+#firstEntryGate .exactEntryField{
+  border-radius:3.3%!important;
+}
+#firstEntryGate .exactEntryButton{
+  border-radius:4%!important;
+}
+@supports not (height:100dvh){
+  #firstEntryGate.exactEntryOverlay{height:100vh!important;min-height:100vh!important}
+  #firstEntryGate .exactEntryStage{height:max(100vh,177.683vw)!important}
+}
