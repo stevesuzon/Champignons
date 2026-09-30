@@ -441,3 +441,27 @@
 .goWoodReportRow.found{border-color:#2d8b4c}.goWoodReportRow.empty{border-color:#8a3e3e}
 .goWoodReportSummary{padding:10px;border-radius:12px;background:#1a2c20;border:1px solid #31543e;font-weight:900;margin-bottom:10px}
 @media(max-width:520px){.visitConfirmActions{grid-template-columns:1fr}.visitConfirmCard{padding:15px}}
+
+/* V42 — gros statuts public prive chasse */
+.woodTypeHelp{margin:4px 0 10px!important;color:#cfe2d4!important;font-size:13px!important;line-height:1.35!important}
+.bigWoodTypeChoices{grid-template-columns:1fr 1fr!important}
+.bigWoodTypeChoices .woodTypeChoice{min-height:68px!important;font-size:17px!important;border-radius:15px!important}
+.bigWoodTypeChoices .woodTypeChoice span{font-weight:1000}
+.bigWoodTypeChoices .woodTypeChoice input{width:28px!important;height:28px!important;min-height:28px!important}
+.woodTypeChoice.hunting{border-color:#e28738;background:#3b1e0c}
+.woodStatusRow{gap:9px!important}
+.woodStatusPublic,.woodStatusPrivate,.woodStatusHunting{
+  display:inline-flex!important;align-items:center;justify-content:center;
+  min-height:46px;padding:8px 14px;border-radius:14px;
+  font-size:18px!important;line-height:1;font-weight:1000!important;
+  border:2px solid transparent;box-shadow:0 3px 10px rgba(0,0,0,.25)
+}
+.woodStatusPublic{background:#123d25;color:#baffca!important;border-color:#4fd978}
+.woodStatusPrivate{background:#4b3308;color:#ffe6a0!important;border-color:#e5b94d}
+.woodStatusHunting{background:#4a200e;color:#ffd0a8!important;border-color:#ec8a45}
+.huntingNotice{padding:8px;border-radius:10px;background:#4b1e0c;color:#ffd3b0!important;font-weight:950}
+.adminEditSpot{background:#6739a5!important;border:2px solid #ba8aff!important}
+@media(max-width:430px){
+  .bigWoodTypeChoices{grid-template-columns:1fr!important}
+  .woodStatusPublic,.woodStatusPrivate,.woodStatusHunting{font-size:16px!important;min-height:44px;padding:8px 11px}
+}
