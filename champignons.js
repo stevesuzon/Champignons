@@ -5,7 +5,7 @@ var API_BASE=String(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.API_BAS
 var COUTEAU_SUISSE_URL=String(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.COUTEAU_SUISSE_URL||API_BASE||'').replace(/\/+$/,'')+'/';
 var MAIN_CODE_KEY='champignons_main_subscription_code_v1';
 var IDENTITY_KEY='carplay_app_identity_v240';
-var state={gps:null,photo:null,analysis:null,stream:null,accessToken:'',spots:[],lastMode:'nearby',addMode:'add',currentGps:null,browseSection:'public',justImportedSharedWood:false,verifyTargetId:'',shareTargetWood:null,shareMembers:[]};
+var state={gps:null,photo:null,analysis:null,stream:null,accessToken:'',spots:[],lastMode:'nearby',addMode:'add',currentGps:null,browseSection:'public',justImportedSharedWood:false,verifyTargetId:'',shareTargetWood:null,shareMembers:[],photoMode:'with'};
 var FREE_UNTIL_CACHE_KEY='carplay_contest_app_free_until_ms';
 var ONBOARDING_KEY='champignons_onboarding_v5';
 var CAR_POSITION_KEY='champignons_car_position_v1';
@@ -16,6 +16,8 @@ function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
 function esc(v){return clean(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function deviceId(){var v=localStorage.getItem('carplay_device_id');if(!v){v=(crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('carplay_device_id',v)}return v}
 function identity(){try{if(window.CouteauSuisseGetIdentity){var x=window.CouteauSuisseGetIdentity();if(x)return x}}catch(_){}try{return JSON.parse(localStorage.getItem(IDENTITY_KEY)||'null')}catch(_){return null}}
+function adminEmail(){return clean(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.ADMIN_EMAIL||'').toLowerCase()}
+function isAdminAccount(){var x=identity()||{};return !!adminEmail()&&clean(x.email).toLowerCase()===adminEmail()}
 function saveIdentityLocal(x){var v={firstName:clean(x&&x.firstName),lastName:clean(x&&x.lastName),email:clean(x&&x.email).toLowerCase()};try{localStorage.setItem(IDENTITY_KEY,JSON.stringify(v));if(v.email)localStorage.setItem('carplay_recovery_email',v.email)}catch(_){}return v}
 function identityComplete(x){x=x||identity()||{};return clean(x.firstName).length>=2&&clean(x.lastName).length>=2&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(x.email).toLowerCase())}
 function identityPlatform(){var ua=navigator.userAgent||'';if(/iphone|ipad|ipod/i.test(ua))return 'ios';if(/android/i.test(ua))return 'android';return 'pwa'}
@@ -106,13 +108,80 @@ function guide(v){var raw=clean(v),parts=raw.split(/\s*(?:,|;|\+)\s*/).filter(Bo
 var SPECIES_NAMES=['Cèpe de Bordeaux','Cèpe bronzé','Cèpe d’été','Cèpe des pins','Bolet bai','Bolet orangé','Bolet à pied rouge','Girolle','Chanterelle en tube','Chanterelle cendrée','Trompette-de-la-mort','Morille commune','Morille conique','Pied-de-mouton','Coulemelle','Lactaire délicieux','Lactaire sanguin','Russule charbonnière','Russule verdoyante','Amanite tue-mouches','Amanite phalloïde','Amanite rougissante','Agaric champêtre','Agaric des bois','Coprin chevelu','Pleurote en huître','Pholiote changeante','Mousseron de la Saint-Georges','Tricholome','Clitocybe','Autre champignon'];
 function normSpecies(v){return clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase()}
 function speciesIsUsable(v){var n=normSpecies(v);return !!n&&n!=='champignon non identifie'}
-function refreshSaveState(){var b=$('saveSpotBtn');if(!b)return;b.disabled=!(state.gps&&state.photo&&state.analysis&&state.analysis.analysisToken&&speciesIsUsable($('speciesInput').value))}
+function refreshSaveState(){var b=$('saveSpotBtn');if(!b)return;var noPhoto=isAdminAccount()&&state.photoMode==='without',photoOk=noPhoto||!!(state.photo&&state.analysis&&state.analysis.analysisToken);b.disabled=!(state.gps&&photoOk&&speciesIsUsable($('speciesInput').value))}
 function showSpeciesMatches(){var box=$('speciesMatches'),raw=String($('speciesInput').value||''),chunks=raw.split(/[,;+]/),q=normSpecies(chunks[chunks.length-1]||'');if(!box)return;if(!q){box.classList.add('hidden');box.innerHTML='';return}var selected=chunks.slice(0,-1).map(clean).filter(Boolean).map(normSpecies);var rows=SPECIES_NAMES.filter(function(name){var n=normSpecies(name);return selected.indexOf(n)<0&&(n.indexOf(q)===0||n.indexOf(q)>0)}).slice(0,8);if(!rows.length){box.classList.add('hidden');box.innerHTML='';return}box.innerHTML=rows.map(function(name){return '<button type="button" class="speciesMatchBtn" data-species="'+esc(name)+'">🍄 '+esc(name)+'</button>'}).join('');box.classList.remove('hidden');Array.from(box.querySelectorAll('.speciesMatchBtn')).forEach(function(b){b.onclick=function(){var now=String($('speciesInput').value||''),parts=now.split(/[,;+]/);parts.pop();var kept=parts.map(clean).filter(Boolean),name=b.dataset.species;if(!kept.some(function(x){return normSpecies(x)===normSpecies(name)}))kept.push(name);$('speciesInput').value=kept.join(', ');box.classList.add('hidden');updateGuide();refreshSaveState()}})}
 function updateGuide(){var g=guide($('speciesInput').value);$('speciesGuide').innerHTML='<b>Catégorie : '+esc(g.category)+'</b><br>🗓️ Saison : '+esc(g.season)+'<br>🌲 Où chercher : '+esc(g.habitat)}
 function stopCamera(){if(state.stream){state.stream.getTracks().forEach(function(t){try{t.stop()}catch(_){}});state.stream=null}var box=$('cameraBox');if(box)box.classList.remove('open')}
 async function preciseGps(){return new Promise(function(resolve,reject){if(!navigator.geolocation)return reject(new Error('GPS indisponible'));var best=null,done=false,start=Date.now(),watch=null;function finish(ok,err){if(done)return;done=true;if(watch!=null)navigator.geolocation.clearWatch(watch);ok?resolve(best):reject(err||new Error('Position trop imprécise'))}watch=navigator.geolocation.watchPosition(function(p){var c=p.coords,x={lat:c.latitude,lon:c.longitude,accuracy:Number(c.accuracy||9999),capturedAt:Date.now()};if(!best||x.accuracy<best.accuracy)best=x;status('gpsStatus','Recherche du meilleur point GPS… précision actuelle : '+Math.round(x.accuracy)+' m');if(best.accuracy<=8)return finish(true);if(Date.now()-start>18000){if(best&&best.accuracy<=35)finish(true);else finish(false,new Error('GPS trop imprécis ('+Math.round(best?best.accuracy:999)+' m).'))}},function(e){finish(false,new Error(e&&e.message||'Localisation refusée'))},{enableHighAccuracy:true,maximumAge:0,timeout:22000});setTimeout(function(){if(!done){if(best&&best.accuracy<=35)finish(true);else finish(false,new Error('GPS trop imprécis.'))}},23000)})}
 function compressCanvas(canvas,maxW){var w=canvas.width,h=canvas.height;if(w>maxW){var r=maxW/w,n=document.createElement('canvas');n.width=maxW;n.height=Math.round(h*r);n.getContext('2d').drawImage(canvas,0,0,n.width,n.height);canvas=n}var q=.82,data=canvas.toDataURL('image/jpeg',q);while(data.length>420000&&q>.5){q-=.08;data=canvas.toDataURL('image/jpeg',q)}return data}
 async function confirmPhotoPosition(){return new Promise(function(resolve,reject){navigator.geolocation.getCurrentPosition(function(p){resolve({lat:p.coords.latitude,lon:p.coords.longitude,accuracy:Number(p.coords.accuracy||9999),capturedAt:Date.now()})},function(e){reject(e)},{enableHighAccuracy:true,maximumAge:0,timeout:12000})})}
+function applyLocatedWood(label){
+  if(!state.gps)return;
+  var noPhoto=isAdminAccount()&&state.photoMode==='without';
+  status('gpsStatus','✅ '+(label||'Bois localisé')+'.','ok');
+  if(noPhoto){
+    if($('cameraBtn'))$('cameraBtn').disabled=true;
+    if($('photoPanel'))$('photoPanel').classList.add('hidden');
+    if($('aiPanel'))$('aiPanel').classList.add('open');
+    if($('step3Title'))$('step3Title').textContent='3. Informations du bois';
+    status('aiStatus','Mode administrateur : aucune photo demandée. Indiquez les variétés puis enregistrez le bois.','ok');
+    status('photoStatus','Photo désactivée pour cette fiche administrateur.','ok');
+  }else{
+    if($('photoPanel'))$('photoPanel').classList.remove('hidden');
+    if($('cameraBtn'))$('cameraBtn').disabled=false;
+    if($('step3Title'))$('step3Title').textContent='3. Reconnaissance du champignon';
+    status('photoStatus','✅ Localisation enregistrée. Le bouton est bleu : prenez maintenant la photo du champignon non cueilli sur place.','ok');
+  }
+  refreshSaveState();
+}
+async function geocodeWoodAddress(){
+  var input=$('woodAddressInput'),btn=$('useAddressBtn'),q=clean(input&&input.value||'');
+  if(q.length<3){status('gpsStatus','❌ Écrivez une adresse assez précise.','bad');return}
+  if(btn)btn.disabled=true;
+  status('gpsStatus','🔎 Recherche de cette adresse…');
+  try{
+    var rows=[];
+    try{
+      var r=await fetch(mushroomAiBase()+'/api/geocode?q='+encodeURIComponent(q),{cache:'no-store'}),j=await r.json();
+      if(r.ok&&j&&Array.isArray(j.results))rows=j.results;
+    }catch(_){}
+    if(!rows.length){
+      var nr=await fetch('https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=fr,be&q='+encodeURIComponent(q),{headers:{'accept':'application/json'},cache:'no-store'});
+      var nj=await nr.json();
+      rows=(Array.isArray(nj)?nj:[]).map(function(x){return{lat:Number(x.lat),lon:Number(x.lon),displayName:clean(x.display_name||'')}});
+    }
+    var hit=rows.find(function(x){return Number.isFinite(Number(x.lat))&&Number.isFinite(Number(x.lon))});
+    if(!hit)throw new Error('Adresse introuvable. Ajoutez la ville ou le code postal.');
+    state.gps={lat:Number(hit.lat),lon:Number(hit.lon),accuracy:50,capturedAt:Date.now(),address:clean(hit.displayName||q),source:'address'};
+    if(input)input.value=state.gps.address||q;
+    applyLocatedWood('Adresse trouvée : '+(state.gps.address||q));
+  }catch(e){state.gps=null;if($('cameraBtn'))$('cameraBtn').disabled=true;status('gpsStatus','❌ '+(e.message||'Adresse introuvable.'),'bad');refreshSaveState()}
+  finally{if(btn)btn.disabled=false}
+}
+function setPhotoMode(mode){
+  var admin=isAdminAccount();
+  state.photoMode=(admin&&mode==='without')?'without':'with';
+  var without=state.photoMode==='without';
+  if($('adminPhotoChoice'))$('adminPhotoChoice').classList.toggle('hidden',!admin);
+  if($('photoModeYes'))$('photoModeYes').classList.toggle('selected',!without);
+  if($('photoModeNo'))$('photoModeNo').classList.toggle('selected',without);
+  if(without){
+    stopCamera();state.photo=null;state.analysis=null;
+    if($('photoPanel'))$('photoPanel').classList.add('hidden');
+    if($('photoPreview'))$('photoPreview').removeAttribute('src');
+    if($('aiPanel'))$('aiPanel').classList.add('open');
+    if($('step3Title'))$('step3Title').textContent='3. Informations du bois';
+    status('aiStatus','Mode administrateur : vous pouvez enregistrer ce bois sans photo. Renseignez les variétés manuellement.','ok');
+  }else{
+    if($('photoPanel'))$('photoPanel').classList.remove('hidden');
+    if($('step3Title'))$('step3Title').textContent='3. Reconnaissance du champignon';
+    if(!state.photo&&$('aiPanel'))$('aiPanel').classList.remove('open');
+    if(state.gps){if($('cameraBtn'))$('cameraBtn').disabled=false;status('photoStatus','✅ Localisation enregistrée. Prenez maintenant la photo du champignon.','ok')}
+  }
+  refreshSaveState();
+}
+function refreshAdminPhotoChoice(){setPhotoMode(isAdminAccount()&&state.photoMode==='without'?'without':'with')}
+
 async function checkAccess(){
   var x=identity()||{},hasProfile=identityComplete(x),legacyCode=clean(localStorage.getItem(MAIN_CODE_KEY)||'');
   if(!hasProfile&&!legacyCode){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Application Champignons : compte à renseigner dans Réglages.';show('homeView');return false}
@@ -131,13 +200,22 @@ async function checkAccess(){
 }
 async function requireRemoteAccess(){if(state.accessToken)return true;var ok=await checkAccess();if(ok)return true;openMushSettings();status('accountLinkStatus','Renseignez puis liez le même nom, prénom et e-mail que dans Couteau Suisse pour utiliser la synchronisation et la reconnaissance.','bad');return false}
 async function analyze(){var ai=$('aiPanel');ai.classList.add('open');status('aiStatus','Analyse du champignon en cours…');$('saveSpotBtn').disabled=true;try{var r=await fetch(API_BASE+'/api/mushrooms/analyze',{method:'POST',headers:authHeaders(),body:JSON.stringify({dataUrl:state.photo.dataUrl,latitude:state.photo.photoLat,longitude:state.photo.photoLon,accuracy:state.photo.photoAccuracy,capturedAt:state.photo.capturedAt}),cache:'no-store'}),j=await r.json();if(!r.ok||!j.ok)throw new Error(j&&j.error==='AUCUN_CHAMPIGNON'?'Photo refusée : il faut photographier un vrai champignon non cueilli, encore en terre.':(j&&j.message)||'Analyse impossible.');state.analysis=j;var detected=clean(j.commonName||j.species||''),conf=Number(j.confidence||0),certain=speciesIsUsable(detected)&&conf>=55;$('speciesInput').value=certain?detected:'';updateGuide();if(certain)status('aiStatus','✅ Champignon reconnu : '+detected+(j.scientificName?' ('+j.scientificName+')':'')+' · confiance '+Math.round(conf)+' %. Vérifiez le nom avant d’enregistrer.','ok');else status('aiStatus','✅ Champignon bien détecté, mais l’espèce n’est pas assez certaine. Tapez 1 ou 2 lettres dans « Quel champignon ? » puis touchez la proposition.','ok');refreshSaveState()}catch(e){state.analysis=null;$('speciesInput').value='';showSpeciesMatches();refreshSaveState();status('aiStatus','❌ '+(e.message||'Photo refusée.'),'bad')}}
-function resetAdd(){stopCamera();state.gps=null;state.photo=null;state.analysis=null;$('cameraBtn').disabled=true;$('saveSpotBtn').disabled=true;$('aiPanel').classList.remove('open');$('photoPreview').removeAttribute('src');$('woodNameInput').value='';$('privateWoodInput').checked=false;$('publicWoodInput').checked=false;$('speciesInput').value='';$('spotNote').value='';$('speciesGuide').innerHTML='';status('gpsStatus','Appuyez sur « Localiser le bois ».');status('photoStatus','Localisez d’abord le bois : ce bouton deviendra bleu.');status('saveStatus','');var sm=$('speciesMatches');if(sm){sm.innerHTML='';sm.classList.add('hidden')}}
+function resetAdd(){
+  stopCamera();state.gps=null;state.photo=null;state.analysis=null;state.photoMode='with';
+  if($('cameraBtn'))$('cameraBtn').disabled=true;if($('saveSpotBtn'))$('saveSpotBtn').disabled=true;
+  if($('aiPanel'))$('aiPanel').classList.remove('open');if($('photoPanel'))$('photoPanel').classList.remove('hidden');
+  if($('photoPreview'))$('photoPreview').removeAttribute('src');if($('woodAddressInput'))$('woodAddressInput').value='';
+  $('woodNameInput').value='';$('privateWoodInput').checked=false;$('publicWoodInput').checked=false;$('speciesInput').value='';$('spotNote').value='';$('speciesGuide').innerHTML='';
+  status('gpsStatus','Utilisez le GPS ou écrivez l’adresse du bois.');status('photoStatus','Localisez d’abord le bois : ce bouton deviendra bleu.');status('saveStatus','');
+  var sm=$('speciesMatches');if(sm){sm.innerHTML='';sm.classList.add('hidden')}
+  refreshAdminPhotoChoice();
+}
 function setAddMode(mode){state.addMode=mode==='recognize'?'recognize':'add';var recognize=state.addMode==='recognize';var title=$('addViewTitle');if(title)title.textContent=recognize?'Reconnaître un champignon':'Ajouter un bois';['woodNameField','privateWoodField','spotNoteField','saveSpotBtn'].forEach(function(id){var e=$(id);if(e)e.classList.toggle('hidden',recognize)});if(!recognize)$('saveSpotBtn').textContent='✅ ENREGISTRER LE BOIS'}
-function openAddMode(mode){resetAdd();setAddMode(mode);show('addView')}
+function openAddMode(mode){resetAdd();setAddMode(mode);refreshAdminPhotoChoice();show('addView')}
 function closeSpotPhoto(){var m=$('spotPhotoModal');if(m)m.classList.add('hidden')}
 function openSpotPhoto(src,alt){var m=$('spotPhotoModal');if(!m){m=document.createElement('div');m.id='spotPhotoModal';m.className='spotPhotoModal hidden';m.innerHTML='<button type="button" class="spotPhotoClose" aria-label="Retour">← RETOUR</button><img class="spotPhotoLarge" alt="">';document.body.appendChild(m);m.onclick=function(e){if(e.target===m)closeSpotPhoto()};m.querySelector('.spotPhotoClose').onclick=closeSpotPhoto}var img=m.querySelector('.spotPhotoLarge');img.src=src;img.alt=alt||'';m.classList.remove('hidden')}
 
-var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v38',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
+var LOCAL_SPOTS_KEY='mushroom_local_spots_v2',CITY_CACHE_KEY='mushroom_city_cache_v1',FOREST_CACHE_KEY='mushroom_forest_cache_v39',FAVORITES_KEY='mushroom_favorite_woods_v1',SHARED_WOODS_KEY='mushroom_shared_woods_v1',WOOD_VERIFY_KEY='mushroom_wood_verifications_v1';
 function loadLocalSpots(){try{var a=JSON.parse(localStorage.getItem(LOCAL_SPOTS_KEY)||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
 function writeLocalSpots(rows){try{localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify((rows||[]).slice(0,60)));return true}catch(_){try{var light=(rows||[]).slice(0,40).map(function(s){var x=Object.assign({},s);if(String(x.photoUrl||'').indexOf('data:image/')===0)x.photoUrl='';return x});localStorage.setItem(LOCAL_SPOTS_KEY,JSON.stringify(light));return true}catch(__){return false}}}
 function saveLocalSpot(spot){var rows=loadLocalSpots().filter(function(x){return String(x.id)!==String(spot.id)});rows.unshift(spot);writeLocalSpots(rows)}
@@ -145,7 +223,7 @@ function updateLocalSpot(spot){if(!spot||!spot.id)return;var rows=loadLocalSpots
 function removeLocalSpot(id){writeLocalSpots(loadLocalSpots().filter(function(x){return String(x.id)!==String(id)}))}
 function readWoodList(key){try{var a=JSON.parse(localStorage.getItem(key)||'[]');return Array.isArray(a)?a:[]}catch(_){return[]}}
 function writeWoodList(key,rows){try{localStorage.setItem(key,JSON.stringify((rows||[]).slice(0,180)));return true}catch(_){return false}}
-function slimWood(s){if(!s)return null;var x={id:String(s.id||('wood-'+Date.now())),woodName:clean(s.woodName||'Bois signalé'),city:clean(s.city||''),latitude:Number(s.latitude),longitude:Number(s.longitude),distanceKm:Number.isFinite(Number(s.distanceKm))?Number(s.distanceKm):null,species:clean(s.species||''),habitat:clean(s.habitat||''),season:clean(s.season||''),isPrivate:s.isPrivate===true?true:s.isPrivate===false?false:null,privacyStatus:clean(s.privacyStatus||''),source:clean(s.source||''),isReferenceForest:!!s.isReferenceForest,photoUrl:generatedCombinationPhoto(s.species)||String(s.photoUrl||''),note:clean(s.note||''),createdAt:s.createdAt||null,localSaved:!!s.localSaved,sharedFrom:clean(s.sharedFrom||s.senderName||'')};if(x.photoUrl.indexOf('data:image/')===0)x.photoUrl='';return x}
+function slimWood(s){if(!s)return null;var x={id:String(s.id||('wood-'+Date.now())),woodName:clean(s.woodName||'Bois signalé'),city:clean(s.city||''),latitude:Number(s.latitude),longitude:Number(s.longitude),distanceKm:Number.isFinite(Number(s.distanceKm))?Number(s.distanceKm):null,species:clean(s.species||''),habitat:clean(s.habitat||''),season:clean(s.season||''),isPrivate:s.isPrivate===true?true:s.isPrivate===false?false:null,privacyStatus:clean(s.privacyStatus||''),source:clean(s.source||''),isReferenceForest:!!s.isReferenceForest,photoUrl:s.noPhoto===true?'':(generatedCombinationPhoto(s.species)||String(s.photoUrl||'')),noPhoto:s.noPhoto===true,address:clean(s.address||''),note:clean(s.note||''),createdAt:s.createdAt||null,localSaved:!!s.localSaved,sharedFrom:clean(s.sharedFrom||s.senderName||'')};if(x.photoUrl.indexOf('data:image/')===0)x.photoUrl='';return x}
 function favoriteWoods(){return readWoodList(FAVORITES_KEY)}
 function sharedWoods(){return readWoodList(SHARED_WOODS_KEY)}
 function favoriteIndex(id){return favoriteWoods().findIndex(function(x){return String(x.id)===String(id)})}
@@ -170,6 +248,7 @@ function upgradeSavedWoodPhotos(){
       var rows=JSON.parse(localStorage.getItem(key)||'[]');if(!Array.isArray(rows))return;
       var changed=false;
       rows=rows.map(function(s){
+        if(s&&s.noPhoto===true)return s;
         var p=generatedCombinationPhoto(s&&s.species);
         if(p&&s.photoUrl!==p){changed=true;return Object.assign({},s,{photoUrl:p})}
         return s
@@ -238,9 +317,9 @@ function mushroomAiBase(){
 }
 function generatedPhotoFallback(species){
   var n=normSpecies(species||''),hasCepe=/(cepe|bolet)/.test(n),hasGirolle=/girolle/.test(n),hasChanterelle=/chanterelle/.test(n),hasTrompette=/trompette/.test(n),hasLactaire=/lactaire/.test(n);
-  if(hasCepe&&hasGirolle&&hasTrompette)return 'photos/cepe-girolle-trompette.jpg?v=38';
-  if(hasCepe&&hasLactaire&&hasChanterelle)return 'photos/cepes-lactaires-chanterelles.jpg?v=38';
-  if(hasCepe&&(hasGirolle||hasChanterelle)&&!hasTrompette&&!hasLactaire)return 'photos/cepes-girolles-chanterelles.jpg?v=38';
+  if(hasCepe&&hasGirolle&&hasTrompette)return 'photos/cepe-girolle-trompette.jpg?v=39';
+  if(hasCepe&&hasLactaire&&hasChanterelle)return 'photos/cepes-lactaires-chanterelles.jpg?v=39';
+  if(hasCepe&&(hasGirolle||hasChanterelle)&&!hasTrompette&&!hasLactaire)return 'photos/cepes-girolles-chanterelles.jpg?v=39';
   var refs=referenceMushroomPhotos(species);
   return refs.length?refs[0].thumb:''
 }
@@ -256,6 +335,7 @@ function singleCombinationPhoto(s,idx){
   return '<img class="mushSpotPhoto generatedMushPhoto" src="'+esc(generated)+'" data-fallback="'+esc(fallback)+'" alt="'+esc('Photo réaliste correspondant exactement aux variétés indiquées : '+species)+'" loading="'+(idx<6?'eager':'lazy')+'" decoding="async" fetchpriority="'+(idx<6?'high':'low')+'" tabindex="0" role="button">'
 }
 function referencePhotoGallery(s,idx){
+  if(s&&s.noPhoto===true)return '<div class="woodPlaceholder"><small>AUCUNE PHOTO</small></div>';
   var one=singleCombinationPhoto(s,idx);
   if(one)return one;
   var photos=referenceMushroomPhotos(s&&s.species);
@@ -595,11 +675,43 @@ $('speciesInput').addEventListener('input',function(){updateGuide();showSpeciesM
 $('addSpeciesBtn').onclick=function(){var inp=$('speciesInput'),v=clean(inp.value);if(v&&!/[,;+]\s*$/.test(v))inp.value=v+', ';inp.focus();showSpeciesMatches();};
 $('saveEditBtn').onclick=saveEdit;$('cancelEditBtn').onclick=function(){$('editSpotModal').classList.add('hidden')};if($('verifyPublicBtn'))$('verifyPublicBtn').onclick=function(){applyWoodVerification('public')};if($('verifyPrivateBtn'))$('verifyPrivateBtn').onclick=function(){applyWoodVerification('private')};if($('cancelVerifyBtn'))$('cancelVerifyBtn').onclick=closeVerifyWood;if($('cancelShareWoodBtn'))$('cancelShareWoodBtn').onclick=closeShareWood;
 $('addSpotBtn').onclick=async function(){if(await requireRemoteAccess())openAddMode('add')};$('browseBtn').onclick=openWoodChooser;$('backHome1').onclick=function(){stopCamera();show('homeView')};$('backHome2').onclick=function(){show('homeView')};if($('backToWoodChooser'))$('backToWoodChooser').onclick=openWoodChooser;$('nearbySpotsBtn').onclick=showPublicWoods;if($('publicWoodsTab'))$('publicWoodsTab').onclick=showPublicWoods;if($('myWoodsTab'))$('myWoodsTab').onclick=showMyWoods;
-$('locateBtn').onclick=async function(){var b=this;b.disabled=true;status('gpsStatus','Recherche du meilleur point GPS…');try{state.gps=await preciseGps();status('gpsStatus','✅ Bois localisé — précision '+Math.round(state.gps.accuracy)+' m.','ok');$('cameraBtn').disabled=false;status('photoStatus','✅ GPS du bois enregistré. Le bouton est bleu : prenez maintenant la photo du champignon non cueilli sur place.','ok')}catch(e){state.gps=null;$('cameraBtn').disabled=true;status('gpsStatus','❌ '+e.message,'bad')}finally{b.disabled=false}};
+$('locateBtn').onclick=async function(){var b=this;b.disabled=true;status('gpsStatus','Recherche du meilleur point GPS…');try{state.gps=await preciseGps();state.gps.source='gps';applyLocatedWood('Bois localisé par GPS — précision '+Math.round(state.gps.accuracy)+' m')}catch(e){state.gps=null;if($('cameraBtn'))$('cameraBtn').disabled=true;status('gpsStatus','❌ '+e.message,'bad');refreshSaveState()}finally{b.disabled=false}};
+if($('useAddressBtn'))$('useAddressBtn').onclick=geocodeWoodAddress;
+if($('woodAddressInput'))$('woodAddressInput').addEventListener('keydown',function(e){if(e.key==='Enter'){e.preventDefault();geocodeWoodAddress()}});
+if($('photoModeYes'))$('photoModeYes').onclick=function(){setPhotoMode('with')};
+if($('photoModeNo'))$('photoModeNo').onclick=function(){setPhotoMode('without')};
 $('cameraBtn').onclick=async function(){if(!state.gps)return;try{state.stream=await navigator.mediaDevices.getUserMedia({audio:false,video:{facingMode:{ideal:'environment'},width:{ideal:1280},height:{ideal:1280}}});$('cameraVideo').srcObject=state.stream;$('cameraBox').classList.add('open');status('photoStatus','Caméra ouverte — photographiez uniquement le champignon non cueilli, encore en terre.')}catch(e){status('photoStatus','❌ Impossible d’ouvrir la caméra. Autorisez la caméra dans les réglages du téléphone.','bad')}};
 $('closeCameraBtn').onclick=stopCamera;
 $('captureBtn').onclick=async function(){if(!state.stream||!state.gps)return;var b=this;b.disabled=true;try{var p=await confirmPhotoPosition(),dist=haversine(state.gps.lat,state.gps.lon,p.lat,p.lon);if(dist>200)throw new Error('Emplacement refusé : le GPS de la photo est à '+Math.round(dist)+' m. Maximum autorisé : 200 m.');var v=$('cameraVideo'),c=$('cameraCanvas');c.width=v.videoWidth||960;c.height=v.videoHeight||960;c.getContext('2d').drawImage(v,0,0,c.width,c.height);var data=compressCanvas(c,1280);state.photo={dataUrl:data,capturedAt:Date.now(),photoLat:p.lat,photoLon:p.lon,photoAccuracy:p.accuracy,distanceMeters:dist};$('photoPreview').src=data;stopCamera();status('photoStatus','✅ GPS du bois et GPS de la photo concordent : '+Math.round(dist)+' m d’écart. Analyse du champignon en cours…','ok');await analyze()}catch(e){status('photoStatus','❌ '+(e.message||'Photo impossible.'),'bad')}finally{b.disabled=false}};
-$('saveSpotBtn').onclick=async function(){var species=clean($('speciesInput').value);if(!state.gps||!state.photo||!state.analysis||!state.analysis.analysisToken){status('saveStatus','GPS, photo en direct et reconnaissance sont obligatoires.','bad');return}if(!speciesIsUsable(species)){status('saveStatus','Choisissez le champignon détecté ou tapez 1 ou 2 lettres pour le sélectionner.','bad');return}if(!$('privateWoodInput').checked&&!$('publicWoodInput').checked){status('saveStatus','Choisissez Bois public ou Bois privé.','bad');return}var b=this;b.disabled=true;status('saveStatus','Enregistrement du bois sur le serveur et sur ce téléphone…');try{var note=clean($('spotNote').value),woodName=clean($('woodNameInput').value),isPrivate=$('privateWoodInput').checked,r=await fetch(API_BASE+'/api/mushrooms/spots',{method:'POST',headers:authHeaders(),body:JSON.stringify({deviceId:deviceId(),latitude:state.gps.lat,longitude:state.gps.lon,accuracy:state.gps.accuracy,photoLatitude:state.photo.photoLat,photoLongitude:state.photo.photoLon,photoAccuracy:state.photo.photoAccuracy,photoDataUrl:state.photo.dataUrl,analysisToken:state.analysis.analysisToken,woodName:woodName,isPrivate:isPrivate,species:species,note:note}),cache:'no-store'}),j=await r.json();if(!r.ok||!j.ok)throw new Error((j&&j.message)||'Enregistrement impossible.');var thumb=await makeLocalThumb(state.photo.dataUrl),g=guide(species),localSpot=Object.assign({},j.spot||{},{woodName:(j.spot&&j.spot.woodName)||woodName||'Bois signalé',species:species,note:note,isPrivate:isPrivate,latitude:state.gps.lat,longitude:state.gps.lon,category:g.category,season:g.season,habitat:g.habitat,source:'community',photoUrl:generatedCombinationPhoto(species)||thumb,localSaved:true,createdAt:(j.spot&&j.spot.createdAt)||Date.now()});var d=localDistanceKm(localSpot);if(d!=null)localSpot.distanceKm=Number(d.toFixed(1));await resolveWoodCity(localSpot);saveLocalSpot(localSpot);var fuel=j.contestFuel||null,parts=['✅ Bois enregistré sur le serveur et sur ce téléphone. Il apparaît maintenant dans « Retourner dans le bois ».'];if(j.contestAutoAwarded){parts.push('🏆 +'+Number(j.contestPoints||50).toFixed(2).replace('.',',')+' points ajoutés automatiquement.');if(fuel){parts.push('🚗 Trajet aller : '+Number(fuel.distanceKm||0).toFixed(2).replace('.',',')+' km');parts.push('⛽ Litres utilisés : '+Number(fuel.liters||0).toFixed(2).replace('.',',')+' L');parts.push('💶 Coût du gasoil : '+Number(fuel.costEuro||0).toFixed(2).replace('.',',')+' €')}}status('saveStatus',parts.join('\n'),'ok');setTimeout(function(){$('spotResults').innerHTML='';showMyWoods()},1100)}catch(e){status('saveStatus','❌ '+e.message,'bad')}finally{b.disabled=false}};
+$('saveSpotBtn').onclick=async function(){
+  var species=clean($('speciesInput').value),noPhoto=isAdminAccount()&&state.photoMode==='without';
+  if(!state.gps){status('saveStatus','Localisez le bois avec le GPS ou une adresse.','bad');return}
+  if(!noPhoto&&(!state.photo||!state.analysis||!state.analysis.analysisToken)){status('saveStatus','La photo en direct et la reconnaissance sont obligatoires pour ce compte.','bad');return}
+  if(!speciesIsUsable(species)){status('saveStatus','Indiquez le ou les champignons présents dans ce bois.','bad');return}
+  if(!$('privateWoodInput').checked&&!$('publicWoodInput').checked){status('saveStatus','Choisissez Bois public ou Bois privé.','bad');return}
+  var b=this;b.disabled=true;
+  status('saveStatus',noPhoto?'Enregistrement du bois sans photo…':'Enregistrement du bois sur le serveur et sur ce téléphone…');
+  try{
+    var note=clean($('spotNote').value),woodName=clean($('woodNameInput').value),isPrivate=$('privateWoodInput').checked;
+    if(noPhoto){
+      var g0=guide(species),fallbackName=woodName||clean(state.gps.address||'').split(',')[0]||'Bois signalé';
+      var localOnly={id:'admin-'+Date.now()+'-'+Math.random().toString(36).slice(2,8),woodName:fallbackName,species:species,note:note,isPrivate:isPrivate,latitude:Number(state.gps.lat),longitude:Number(state.gps.lon),accuracy:Number(state.gps.accuracy||50),address:clean(state.gps.address||''),category:g0.category,season:g0.season,habitat:g0.habitat,source:'admin-manual',photoUrl:'',noPhoto:true,localSaved:true,createdAt:Date.now()};
+      var d0=localDistanceKm(localOnly);if(d0!=null)localOnly.distanceKm=Number(d0.toFixed(1));
+      await resolveWoodCity(localOnly);saveLocalSpot(localOnly);
+      status('saveStatus','✅ Bois enregistré sans photo en mode administrateur.','ok');
+      setTimeout(function(){$('spotResults').innerHTML='';showMyWoods()},700);
+      return;
+    }
+    var r=await fetch(API_BASE+'/api/mushrooms/spots',{method:'POST',headers:authHeaders(),body:JSON.stringify({deviceId:deviceId(),latitude:state.gps.lat,longitude:state.gps.lon,accuracy:state.gps.accuracy,photoLatitude:state.photo.photoLat,photoLongitude:state.photo.photoLon,photoAccuracy:state.photo.photoAccuracy,photoDataUrl:state.photo.dataUrl,analysisToken:state.analysis.analysisToken,woodName:woodName,isPrivate:isPrivate,species:species,note:note}),cache:'no-store'}),j=await r.json();
+    if(!r.ok||!j.ok)throw new Error((j&&j.message)||'Enregistrement impossible.');
+    var thumb=await makeLocalThumb(state.photo.dataUrl),g=guide(species),localSpot=Object.assign({},j.spot||{},{woodName:(j.spot&&j.spot.woodName)||woodName||'Bois signalé',species:species,note:note,isPrivate:isPrivate,latitude:state.gps.lat,longitude:state.gps.lon,address:clean(state.gps.address||''),category:g.category,season:g.season,habitat:g.habitat,source:'community',photoUrl:generatedCombinationPhoto(species)||thumb,localSaved:true,createdAt:(j.spot&&j.spot.createdAt)||Date.now()});
+    var d=localDistanceKm(localSpot);if(d!=null)localSpot.distanceKm=Number(d.toFixed(1));await resolveWoodCity(localSpot);saveLocalSpot(localSpot);
+    var fuel=j.contestFuel||null,parts=['✅ Bois enregistré sur le serveur et sur ce téléphone. Il apparaît maintenant dans « Retourner dans le bois ».'];
+    if(j.contestAutoAwarded){parts.push('🏆 +'+Number(j.contestPoints||50).toFixed(2).replace('.',',')+' points ajoutés automatiquement.');if(fuel){parts.push('🚗 Trajet aller : '+Number(fuel.distanceKm||0).toFixed(2).replace('.',',')+' km');parts.push('⛽ Litres utilisés : '+Number(fuel.liters||0).toFixed(2).replace('.',',')+' L');parts.push('💶 Coût du gasoil : '+Number(fuel.costEuro||0).toFixed(2).replace('.',',')+' €')}}
+    status('saveStatus',parts.join('\n'),'ok');setTimeout(function(){$('spotResults').innerHTML='';showMyWoods()},1100);
+  }catch(e){status('saveStatus','❌ '+(e.message||'Enregistrement impossible.'),'bad')}
+  finally{b.disabled=false}
+};
 function isStandaloneApp(){return !!(window.navigator.standalone||window.matchMedia&&window.matchMedia('(display-mode: standalone)').matches)}
 var deferredInstallPrompt=null;
 function openInstallHelp(){
@@ -645,7 +757,7 @@ async function saveReturnPlace(){
 }
 var accountWatchTimer=null;
 function fillAccountFields(){var x=identity()||{};if($('accountLastName'))$('accountLastName').value=clean(x.lastName);if($('accountFirstName'))$('accountFirstName').value=clean(x.firstName);if($('accountEmail'))$('accountEmail').value=clean(x.email||localStorage.getItem('carplay_recovery_email')||'')}
-async function refreshAccountLinkStatus(silent){var x=identity()||{};if(!identityComplete(x)){if(!silent)status('accountLinkStatus','Renseignez le nom, le prénom et l’adresse e-mail utilisés dans Couteau Suisse.');return false}try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.verified){if(j.identity)saveIdentityLocal(j.identity);status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');if(accountWatchTimer){clearInterval(accountWatchTimer);accountWatchTimer=null}await checkAccess();return true}if(!silent)status('accountLinkStatus','📧 Coordonnées enregistrées. L’adresse e-mail doit encore être confirmée pour lier le compte.');return false}catch(_){if(!silent)status('accountLinkStatus','Coordonnées enregistrées sur ce téléphone. Vérification Couteau Suisse indisponible pour le moment.','bad');return false}}
+async function refreshAccountLinkStatus(silent){var x=identity()||{};if(!identityComplete(x)){if(!silent)status('accountLinkStatus','Renseignez le nom, le prénom et l’adresse e-mail utilisés dans Couteau Suisse.');return false}try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.verified){if(j.identity)saveIdentityLocal(j.identity);refreshAdminPhotoChoice();status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');if(accountWatchTimer){clearInterval(accountWatchTimer);accountWatchTimer=null}await checkAccess();return true}if(!silent)status('accountLinkStatus','📧 Coordonnées enregistrées. L’adresse e-mail doit encore être confirmée pour lier le compte.');return false}catch(_){if(!silent)status('accountLinkStatus','Coordonnées enregistrées sur ce téléphone. Vérification Couteau Suisse indisponible pour le moment.','bad');return false}}
 function startAccountWatch(){if(accountWatchTimer)clearInterval(accountWatchTimer);var left=75;accountWatchTimer=setInterval(async function(){left--;var ok=await refreshAccountLinkStatus(true);if(ok||left<=0){clearInterval(accountWatchTimer);accountWatchTimer=null}},4000)}
 async function saveCouteauAccount(){var last=clean($('accountLastName').value),first=clean($('accountFirstName').value),email=clean($('accountEmail').value).toLowerCase();if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('accountLinkStatus','❌ Nom, prénom et adresse e-mail valide sont obligatoires.','bad');return}var x=saveIdentityLocal({lastName:last,firstName:first,email:email}),b=$('saveCouteauAccountBtn');b.disabled=true;status('accountLinkStatus','Enregistrement et liaison avec Couteau Suisse…');try{var sr=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:email}),cache:'no-store'}),sj=await sr.json().catch(function(){return {}});if(sr.ok&&sj&&sj.verified){await fetch(API_BASE+'/api/app-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:identityPlatform(),firstName:first,lastName:last,email:email}),cache:'no-store'}).catch(function(){});status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}var r=await fetch(API_BASE+'/api/app-identity/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:identityPlatform(),firstName:first,lastName:last,email:email}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(!r.ok||!j.ok)throw j;if(j.alreadyVerified){if(j.identity)saveIdentityLocal(j.identity);status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}status('accountLinkStatus','📧 Un e-mail de confirmation Couteau Suisse a été envoyé. Ouvrez-le, confirmez l’adresse e-mail, puis revenez dans Champignons : la liaison se fera automatiquement.','ok');startAccountWatch()}catch(e){var c=e&&e.error||'',m=c==='EMAIL_TROP_RAPIDE'?'Un e-mail a déjà été envoyé récemment. Vérifiez votre boîte mail.':c==='QUOTA_EMAIL_JOURNALIER'?'Envoi d’e-mail momentanément indisponible. Réessayez plus tard.':'Impossible de lier le compte pour le moment.';status('accountLinkStatus','❌ '+m,'bad')}finally{b.disabled=false}}
 function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLastName').value=clean(x.lastName);if($('entryFirstName'))$('entryFirstName').value=clean(x.firstName);if($('entryEmail'))$('entryEmail').value=clean(x.email||localStorage.getItem('carplay_recovery_email')||'')}
