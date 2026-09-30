@@ -95,6 +95,53 @@ async function recentFoundReports(url,env){
 
 function distanceKm(a,b,c,d){const R=6371,p1=a*Math.PI/180,p2=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
 
+function csvNumber(v){const n=Number(String(v==null?'':v).replace(',','.'));return Number.isFinite(n)?n:null}
+function parseSimpleCsv(text){
+  const lines=String(text||'').replace(/^\uFEFF/,'').split(/\r?\n/).filter(Boolean);if(lines.length<2)return [];
+  const sep=lines[0].includes(';')?';':',',heads=lines[0].split(sep).map(x=>x.trim());
+  return lines.slice(1).map(line=>{const vals=line.split(sep),o={};heads.forEach((h,i)=>o[h]=vals[i]);return o});
+}
+async function departmentFromGps(lat,lon){
+  try{
+    const u='https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=10&addressdetails=1&lat='+encodeURIComponent(lat)+'&lon='+encodeURIComponent(lon);
+    const r=await fetch(u,{headers:{'accept':'application/json','user-agent':'Champignons/1.0'}}),j=await r.json(),pc=String(j&&j.address&&j.address.postcode||'');
+    if(/^97[1-6]/.test(pc))return pc.slice(0,3);
+    if(/^20/.test(pc))return Number(lat)>42.15?'2B':'2A';
+    return /^\d{5}$/.test(pc)?pc.slice(0,2):'';
+  }catch(_){return''}
+}
+async function findMeteoFranceResource(dep){
+  const cache=caches.default,key=new Request('https://champignons.local/cache/meteo-resource?dep='+encodeURIComponent(dep)),hit=await cache.match(key);
+  if(hit){try{return await hit.json()}catch(_){}}
+  const r=await fetch('https://www.data.gouv.fr/api/1/datasets/6569b51ae64326786e4e8e1a/',{headers:{accept:'application/json'}});if(!r.ok)return null;
+  const j=await r.json(),resources=Array.isArray(j.resources)?j.resources:[],needle='Q_'+dep+'_latest-';
+  const rows=resources.filter(x=>{const z=[x.title,x.description,x.url].map(v=>String(v||'')).join(' ');return z.includes(needle)&&z.includes('RR-T-Vent')&&/\.csv\.gz(?:$|\?)/.test(String(x.url||''))}).sort((a,b)=>String(b.last_modified||b.modified||'').localeCompare(String(a.last_modified||a.modified||'')));
+  const out=rows.length?{url:rows[0].url,title:rows[0].title||'',modified:rows[0].last_modified||rows[0].modified||''}:null;
+  if(out)await cache.put(key,new Response(JSON.stringify(out),{headers:{'content-type':'application/json','cache-control':'public,max-age=21600'}}));
+  return out;
+}
+async function gunzipText(response){
+  try{return await new Response(response.body.pipeThrough(new DecompressionStream('gzip'))).text()}catch(_){return await response.text()}
+}
+async function meteoFranceRecent(lat,lon){
+  const dep=await departmentFromGps(lat,lon);if(!dep)return null;
+  const resource=await findMeteoFranceResource(dep);if(!resource||!resource.url)return null;
+  const r=await fetch(resource.url,{cf:{cacheTtl:3600}});if(!r.ok)return null;
+  const rows=parseSimpleCsv(await gunzipText(r));if(!rows.length)return null;
+  const now=new Date(),cut=Number(new Date(now.getTime()-8*86400000).toISOString().slice(0,10).replace(/-/g,''));
+  const recent=rows.filter(x=>Number(x.AAAAMMJJ)>=cut&&Number.isFinite(csvNumber(x.LAT))&&Number.isFinite(csvNumber(x.LON)));if(!recent.length)return null;
+  const stationBest=new Map();for(const x of recent){const k=String(x.NUM_POSTE||x.NOM_USUEL||'');if(!k)continue;const d=distanceKm(lat,lon,csvNumber(x.LAT),csvNumber(x.LON));if(!stationBest.has(k)||d<stationBest.get(k).distance)stationBest.set(k,{distance:d,name:String(x.NOM_USUEL||''),lat:csvNumber(x.LAT),lon:csvNumber(x.LON)})}
+  const nearest=[...stationBest.entries()].sort((a,b)=>a[1].distance-b[1].distance)[0];if(!nearest)return null;
+  const key=nearest[0],station=nearest[1],sr=recent.filter(x=>String(x.NUM_POSTE||x.NOM_USUEL||'')===key).sort((a,b)=>Number(a.AAAAMMJJ)-Number(b.AAAAMMJJ));
+  let rain7=0,temps=[];for(const x of sr.slice(-7)){const rr=csvNumber(x.RR);if(rr!=null)rain7+=rr;const tm=csvNumber(x.TM);if(tm!=null)temps.push(tm);else{const tn=csvNumber(x.TN),tx=csvNumber(x.TX);if(tn!=null&&tx!=null)temps.push((tn+tx)/2)}}
+  const tempAvg=temps.length?temps.reduce((a,b)=>a+b,0)/temps.length:null,latest=sr[sr.length-1]||{};
+  return {source:'Météo-France',department:dep,station:station.name,distanceKm:Number(station.distance.toFixed(1)),rain7:Number(rain7.toFixed(1)),tempAvg:tempAvg==null?null:Number(tempAvg.toFixed(1)),latestDay:String(latest.AAAAMMJJ||''),resourceTitle:resource.title,resourceModified:resource.modified};
+}
+async function mushroomWeather(url){
+  const lat=Number(url.searchParams.get('lat')),lon=Number(url.searchParams.get('lon'));if(!Number.isFinite(lat)||!Number.isFinite(lon))return json({ok:false,error:'GPS_INVALIDE'},400);
+  try{const weather=await meteoFranceRecent(lat,lon);if(!weather)return json({ok:false,error:'METEO_FRANCE_INDISPONIBLE'},502);return json({ok:true,weather})}catch(e){return json({ok:false,error:'METEO_FRANCE_INDISPONIBLE',message:String(e&&e.message||e)},502)}
+}
+
 function cleanSpecies(value){
   return String(value||'')
     .replace(/[^a-zA-ZÀ-ÿ0-9 ,;\-\/’']/g,' ')
@@ -142,6 +189,7 @@ export default {
     if(url.pathname==='/api/visits/report'&&request.method==='POST'){try{return await saveVisitReport(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits'&&request.method==='GET'){try{return await listVisitReports(url,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits/recent-found'&&request.method==='GET'){try{return await recentFoundReports(url,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/mushroom-weather'&&request.method==='GET')return await mushroomWeather(url);
     if(url.pathname==='/api/mushroom-photo'&&request.method==='GET'){
       const species=cleanSpecies(url.searchParams.get('species'));
       if(!species)return json({ok:false,error:'VARIETES_MANQUANTES'},400);
