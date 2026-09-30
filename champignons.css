@@ -861,3 +861,225 @@
   .promoEntryButton{min-height:56px;font-size:16px}
   .promoSavedInfo,.promoWarning{font-size:12px}
 }
+
+/* V48 — maquette entree style prefere */
+#firstEntryGate.onboardingOverlay{
+  inset:0!important;
+  background:
+    linear-gradient(rgba(2,13,7,.72),rgba(2,13,7,.88)),
+    url('photos/cepe-girolle-trompette.jpg') center/cover no-repeat!important;
+  padding:max(18px,env(safe-area-inset-top)) 14px max(18px,env(safe-area-inset-bottom))!important;
+}
+#firstEntryGate .promoEntryPanel{
+  width:min(620px,100%)!important;
+  margin:auto!important;
+  padding:18px!important;
+  border:3px solid #56d77e!important;
+  border-radius:28px!important;
+  background:linear-gradient(180deg,#07391d 0%,#052915 42%,#031e0f 100%)!important;
+  box-shadow:0 20px 70px #000b, inset 0 0 34px rgba(64,215,111,.08)!important;
+}
+#firstEntryGate .promoEntryHero{
+  min-height:172px!important;
+  margin:-18px -18px 10px!important;
+  padding:22px 18px 14px 145px!important;
+  overflow:hidden;
+  border-radius:24px 24px 0 0;
+  isolation:isolate;
+}
+#firstEntryGate .promoEntryForest{
+  position:absolute;
+  inset:0;
+  z-index:-2;
+  background:
+    linear-gradient(180deg,rgba(3,34,16,.24),rgba(3,34,16,.92)),
+    url('photos/cepe-girolle-trompette.jpg') center 42%/cover no-repeat;
+  filter:saturate(.92) brightness(.72);
+}
+#firstEntryGate .promoEntryHero:after{
+  content:"";
+  position:absolute;
+  inset:0;
+  z-index:-1;
+  background:linear-gradient(90deg,rgba(2,31,14,.18),rgba(2,31,14,.05) 45%,rgba(2,31,14,.32));
+}
+#firstEntryGate .promoEntryMushroom{
+  position:absolute;
+  left:24px!important;
+  top:28px!important;
+  width:110px!important;
+  height:110px!important;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  font-size:92px!important;
+  line-height:1;
+  filter:drop-shadow(0 10px 13px #0008);
+}
+#firstEntryGate .promoEntryTitle{
+  align-self:center;
+  color:#fff5dd!important;
+  font-size:40px!important;
+  line-height:.98!important;
+  font-weight:1000!important;
+  letter-spacing:.2px!important;
+  text-shadow:0 5px 0 #17341f,0 8px 20px #000b!important;
+}
+#firstEntryGate .promoEntryTitle span{
+  margin-top:8px!important;
+  color:#ffd33f!important;
+  font-size:56px!important;
+  line-height:.9!important;
+  text-shadow:0 5px 0 #865900,0 10px 22px #000a!important;
+}
+#firstEntryGate .promoFreeUntil{
+  min-height:82px;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  margin:12px 4px 20px!important;
+  padding:14px 16px!important;
+  border:3px solid #79e99d!important;
+  border-radius:24px!important;
+  background:linear-gradient(180deg,#0e4929,#07391e)!important;
+  font-size:23px!important;
+  line-height:1.1!important;
+  box-shadow:0 0 18px rgba(102,241,145,.16)!important;
+}
+#firstEntryGate .promoEntryLead{
+  margin:0 16px 22px!important;
+  color:#fff!important;
+  font-size:21px!important;
+  line-height:1.35!important;
+  font-weight:950!important;
+}
+#firstEntryGate .promoEntryLead b{
+  color:#ffd240!important;
+}
+#firstEntryGate .promoEntryFields{
+  gap:14px!important;
+  margin:0 4px!important;
+}
+#firstEntryGate .promoInputRow{
+  min-height:78px!important;
+  padding:0 18px!important;
+  gap:15px!important;
+  border:3px solid #587967!important;
+  border-radius:19px!important;
+  background:linear-gradient(180deg,#123e25,#0d311d)!important;
+}
+#firstEntryGate .promoInputIcon{
+  flex:0 0 46px!important;
+  width:46px!important;
+  font-size:31px!important;
+}
+#firstEntryGate .promoInputRow input{
+  min-height:72px!important;
+  font-size:26px!important;
+  font-weight:1000!important;
+}
+#firstEntryGate .promoEntryButton{
+  min-height:88px!important;
+  margin:20px 4px 0!important;
+  border:3px solid #d6ff7f!important;
+  border-radius:22px!important;
+  background:linear-gradient(180deg,#42d53d,#159c2e)!important;
+  font-size:24px!important;
+  letter-spacing:.1px;
+  box-shadow:0 9px 22px #0008,0 0 22px rgba(74,238,98,.18)!important;
+}
+#firstEntryGate .promoSavedInfo{
+  margin:20px 22px 0!important;
+  color:#fff!important;
+  font-size:17px!important;
+  line-height:1.32!important;
+  font-weight:900!important;
+}
+#firstEntryGate .promoWarning{
+  margin:20px 4px 4px!important;
+  padding:16px 18px!important;
+  border:3px solid #f68c2c!important;
+  border-radius:22px!important;
+  background:linear-gradient(180deg,#6a2d0d,#4c1d07)!important;
+  color:#fff4dc!important;
+  font-size:17px!important;
+  line-height:1.38!important;
+  font-weight:950!important;
+}
+#firstEntryGate .promoEntryStatus{
+  margin:12px 4px 0!important;
+  font-size:15px!important;
+}
+@media(max-width:430px){
+  #firstEntryGate.onboardingOverlay{
+    padding:max(10px,env(safe-area-inset-top)) 8px max(10px,env(safe-area-inset-bottom))!important;
+  }
+  #firstEntryGate .promoEntryPanel{
+    padding:12px!important;
+    border-radius:23px!important;
+  }
+  #firstEntryGate .promoEntryHero{
+    min-height:142px!important;
+    margin:-12px -12px 8px!important;
+    padding:18px 10px 10px 112px!important;
+    border-radius:20px 20px 0 0!important;
+  }
+  #firstEntryGate .promoEntryMushroom{
+    left:15px!important;
+    top:26px!important;
+    width:88px!important;
+    height:88px!important;
+    font-size:73px!important;
+  }
+  #firstEntryGate .promoEntryTitle{
+    font-size:31px!important;
+  }
+  #firstEntryGate .promoEntryTitle span{
+    font-size:45px!important;
+  }
+  #firstEntryGate .promoFreeUntil{
+    min-height:68px!important;
+    margin:8px 2px 14px!important;
+    padding:10px 9px!important;
+    border-radius:19px!important;
+    font-size:18px!important;
+  }
+  #firstEntryGate .promoEntryLead{
+    margin:0 8px 14px!important;
+    font-size:17px!important;
+  }
+  #firstEntryGate .promoEntryFields{
+    gap:10px!important;
+    margin:0 2px!important;
+  }
+  #firstEntryGate .promoInputRow{
+    min-height:64px!important;
+    padding:0 12px!important;
+    border-radius:15px!important;
+  }
+  #firstEntryGate .promoInputIcon{
+    flex-basis:38px!important;
+    width:38px!important;
+    font-size:25px!important;
+  }
+  #firstEntryGate .promoInputRow input{
+    min-height:58px!important;
+    font-size:21px!important;
+  }
+  #firstEntryGate .promoEntryButton{
+    min-height:72px!important;
+    margin:14px 2px 0!important;
+    border-radius:18px!important;
+    font-size:19px!important;
+  }
+  #firstEntryGate .promoSavedInfo{
+    margin:14px 12px 0!important;
+    font-size:14px!important;
+  }
+  #firstEntryGate .promoWarning{
+    margin:14px 2px 2px!important;
+    padding:12px 13px!important;
+    border-radius:17px!important;
+    font-size:14px!important;
+  }
+}
