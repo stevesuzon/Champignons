@@ -1,4 +1,4 @@
-const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store"};
+const JSON_HEADERS={"content-type":"application/json; charset=utf-8","cache-control":"no-store","access-control-allow-origin":"*"};
 
 function json(data,status=200){
   return new Response(JSON.stringify(data),{status,headers:JSON_HEADERS});
@@ -44,6 +44,21 @@ async function queryOverpass(lat,lon,radius,limit){
   }
   return [];
 }
+async function geocodeAddress(query){
+  const q=String(query||'').replace(/\s+/g,' ').trim().slice(0,220);
+  if(q.length<3)return [];
+  const endpoint='https://nominatim.openstreetmap.org/search?format=jsonv2&addressdetails=1&limit=5&countrycodes=fr,be&q='+encodeURIComponent(q);
+  const ctrl=new AbortController();
+  const timer=setTimeout(()=>ctrl.abort(),12000);
+  try{
+    const r=await fetch(endpoint,{headers:{'accept':'application/json','user-agent':'Champignons/1.0'},signal:ctrl.signal});
+    clearTimeout(timer);
+    if(!r.ok)return [];
+    const rows=await r.json();
+    return (Array.isArray(rows)?rows:[]).map(x=>({lat:Number(x.lat),lon:Number(x.lon),displayName:String(x.display_name||''),name:String(x.name||''),type:String(x.type||''),importance:Number(x.importance||0)})).filter(x=>Number.isFinite(x.lat)&&Number.isFinite(x.lon));
+  }catch(_){clearTimeout(timer);return []}
+}
+
 
 
 function cleanSpecies(value){
@@ -103,6 +118,12 @@ export default {
       }catch(e){
         return json({ok:false,error:'GENERATION_IMAGE_IMPOSSIBLE',message:String(e&&e.message||e)},502);
       }
+    }
+    if(url.pathname==='/api/geocode'&&request.method==='GET'){
+      const q=String(url.searchParams.get('q')||'').trim();
+      if(q.length<3)return json({ok:false,error:'ADRESSE_TROP_COURTE'},400);
+      const results=await geocodeAddress(q);
+      return json({ok:true,results});
     }
     if(url.pathname==='/api/forests'&&request.method==='GET'){
       const lat=Number(url.searchParams.get('lat'));
