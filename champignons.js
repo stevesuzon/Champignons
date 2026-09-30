@@ -12,12 +12,90 @@ function temporaryFreeActive(){return Date.now()<=TEMP_FREE_UNTIL_MS}
 var ONBOARDING_KEY='champignons_onboarding_v7';
 var CAR_POSITION_KEY='champignons_car_position_v1';
 var USER_POSITION_KEY='champignons_user_position_v1';
+var NOTIFICATION_PREF_KEY='champignons_notifications_enabled_v1';
 function cachedTrialUntil(){var ms=0;try{ms=Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY)||0)}catch(_){}if(temporaryFreeActive())ms=Math.max(Number.isFinite(ms)?ms:0,TEMP_FREE_UNTIL_MS);return Number.isFinite(ms)&&ms>0?ms:0}
 async function syncTrialUntil(){var cached=cachedTrialUntil();try{var r=await fetch(API_BASE+'/api/contest/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}),j=await r.json();var ms=Number(j&&j.appFreeUntil||0);if(temporaryFreeActive())ms=Math.max(Number.isFinite(ms)?ms:0,TEMP_FREE_UNTIL_MS);if(r.ok&&ms>0){try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(ms))}catch(_){}return ms}}catch(_){}return cached}
 function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
 function esc(v){return clean(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function deviceId(){var v=localStorage.getItem('carplay_device_id');if(!v){v=(crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('carplay_device_id',v)}return v}
 function identity(){try{if(window.CouteauSuisseGetIdentity){var x=window.CouteauSuisseGetIdentity();if(x)return x}}catch(_){}try{return JSON.parse(localStorage.getItem(IDENTITY_KEY)||'null')}catch(_){return null}}
+
+function notificationPermissionState(){
+  if(!('Notification' in window))return 'unsupported';
+  return Notification.permission||'default'
+}
+function notificationsWanted(){try{return localStorage.getItem(NOTIFICATION_PREF_KEY)==='1'}catch(_){return false}}
+function saveNotificationsWanted(v){try{localStorage.setItem(NOTIFICATION_PREF_KEY,v?'1':'0')}catch(_){}}
+function isIosDevice(){return /iphone|ipad|ipod/i.test(navigator.userAgent||'')}
+function notificationMenuLabel(v){var el=$('notificationsMenuValue');if(el)el.textContent=v}
+async function refreshNotificationSettings(){
+  var card=$('notificationPermissionCard'),title=$('notificationPermissionTitle'),txt=$('notificationPermissionText'),toggle=$('toggleNotificationsBtn'),open=$('openNotificationSettingsBtn'),test=$('testNotificationBtn');
+  if(!card||!title||!txt||!toggle)return;
+  var p=notificationPermissionState(),wanted=notificationsWanted();
+  card.classList.remove('ok','bad','off');
+  open&&open.classList.add('hidden');test&&test.classList.add('hidden');
+  toggle.disabled=false;
+  if(p==='granted'){
+    if(wanted){
+      card.classList.add('ok');title.textContent='✅ NOTIFICATIONS ACTIVÉES';txt.textContent='Champignons peut vous prévenir quand les conditions sont bonnes et avant la fin de saison.';
+      toggle.textContent='🔕 NE PLUS RECEVOIR LES NOTIFICATIONS';notificationMenuLabel('ACTIVÉES');if(test)test.classList.remove('hidden')
+    }else{
+      card.classList.add('off');title.textContent='🔕 NOTIFICATIONS DÉSACTIVÉES DANS CHAMPIGNONS';txt.textContent='L’iPhone les autorise, mais l’application a été réglée pour ne rien envoyer.';
+      toggle.textContent='🔔 RECEVOIR LES NOTIFICATIONS';notificationMenuLabel('DÉSACTIVÉES')
+    }
+    return
+  }
+  if(p==='denied'){
+    card.classList.add('bad');title.textContent='🚫 NOTIFICATIONS BLOQUÉES DANS L’IPHONE';txt.textContent='L’autorisation est coupée dans les réglages du téléphone. Appuyez ci-dessous pour aller aux réglages.';
+    toggle.textContent='⚙️ OUVRIR LES RÉGLAGES';notificationMenuLabel('BLOQUÉES');if(open)open.classList.remove('hidden');return
+  }
+  if(p==='unsupported'){
+    card.classList.add('bad');title.textContent='⚠️ NOTIFICATIONS NON DISPONIBLES';txt.textContent=isIosDevice()&&!isStandaloneApp()?'Installez d’abord Champignons sur l’écran d’accueil de l’iPhone pour pouvoir recevoir les notifications.':'Ce navigateur ne permet pas les notifications pour cette application.';
+    toggle.disabled=true;toggle.textContent='🔔 NOTIFICATIONS INDISPONIBLES';notificationMenuLabel('INDISPONIBLES');return
+  }
+  card.classList.add('off');title.textContent='🔔 NOTIFICATIONS À AUTORISER';txt.textContent='Appuyez sur le bouton pour autoriser les notifications de Champignons.';
+  toggle.textContent='🔔 ACTIVER LES NOTIFICATIONS';notificationMenuLabel('À ACTIVER')
+}
+async function openNotificationSystemSettings(){
+  status('notificationStatus','Ouverture des réglages de notifications…');
+  if(isIosDevice()){
+    try{location.href='app-settings:'}catch(_){}
+    setTimeout(function(){if(document.visibilityState==='visible')status('notificationStatus','Si les réglages ne se sont pas ouverts : Réglages iPhone → Notifications → Champignons.','bad')},1200);
+    return
+  }
+  status('notificationStatus','Ouvrez les réglages du téléphone → Applications → Champignons → Notifications.','bad')
+}
+async function toggleNotifications(){
+  var p=notificationPermissionState();
+  if(p==='denied'){await openNotificationSystemSettings();return}
+  if(p==='unsupported'){await refreshNotificationSettings();return}
+  if(p==='granted'){
+    saveNotificationsWanted(!notificationsWanted());await refreshNotificationSettings();
+    status('notificationStatus',notificationsWanted()?'✅ Vous recevrez les alertes Champignons.':'🔕 Les notifications Champignons sont coupées sur ce téléphone.',notificationsWanted()?'ok':'');
+    return
+  }
+  try{
+    var result=await Notification.requestPermission();
+    if(result==='granted'){saveNotificationsWanted(true);status('notificationStatus','✅ Notifications autorisées.','ok')}
+    else{saveNotificationsWanted(false);status('notificationStatus','🚫 Les notifications sont bloquées dans les réglages du téléphone.','bad')}
+  }catch(e){status('notificationStatus','❌ Impossible de demander l’autorisation des notifications.','bad')}
+  await refreshNotificationSettings()
+}
+async function showChampignonsNotification(title,body,tag){
+  if(notificationPermissionState()!=='granted'||!notificationsWanted())return false;
+  var opts={body:body,icon:'icon.svg',tag:tag||'champignons-alert',renotify:false,data:{url:location.href}};
+  try{
+    if('serviceWorker' in navigator){
+      var reg=await Promise.race([navigator.serviceWorker.ready,new Promise(function(_,reject){setTimeout(function(){reject(new Error('sw'))},1400)})]);
+      if(reg&&reg.showNotification){await reg.showNotification(title,opts);return true}
+    }
+  }catch(_){}
+  try{new Notification(title,opts);return true}catch(_){return false}
+}
+async function testChampignonsNotification(){
+  var ok=await showChampignonsNotification('🍄 Test Champignons','Les notifications fonctionnent bien sur cet appareil.','champignons-test');
+  status('notificationStatus',ok?'✅ Notification de test envoyée.':'❌ Impossible d’afficher la notification de test.',ok?'ok':'bad')
+}
 function adminEmail(){return clean(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.ADMIN_EMAIL||'').toLowerCase()}
 function isAdminAccount(){var x=identity()||{};return !!adminEmail()&&clean(x.email).toLowerCase()===adminEmail()}
 function saveIdentityLocal(x){var v={firstName:clean(x&&x.firstName),lastName:clean(x&&x.lastName),email:clean(x&&x.email).toLowerCase()};try{localStorage.setItem(IDENTITY_KEY,JSON.stringify(v));if(v.email)localStorage.setItem('carplay_recovery_email',v.email)}catch(_){}return v}
@@ -978,7 +1056,7 @@ function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLa
 async function loadExactEntryBackground(){
   var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
   try{
-    var r=await fetch('assets/entry-bg.b64?v=50',{cache:'force-cache'});
+    var r=await fetch('assets/entry-bg.b64?v=52',{cache:'force-cache'});
     if(!r.ok)throw new Error('image');
     var b64=(await r.text()).replace(/\s+/g,'');
     el.style.backgroundImage='url("data:image/webp;base64,'+b64+'")';
@@ -1167,16 +1245,20 @@ function closeAllSettingsPanels(){['accountPanel','positionPanel','gpsPanel','me
 function openSettingsPanel(id){closeAllSettingsPanels();var m=document.querySelector('.settingsMenu');if(m)m.classList.add('hidden');var e=$(id);if(e)e.classList.remove('hidden');if(id==='accountPanel')refreshAccountPanel();if(id==='positionPanel')refreshSavedPositionPanel();if(id==='gpsPanel')refreshGpsPref();if(id==='membersPanel')loadMembers();if(id==='ediblePanel')renderEdibleCatalog($('edibleSearch')&&$('edibleSearch').value||'')}
 async function refreshAccountPanel(){fillAccountFields();var x=identity()||{},card=$('accountConfirmedCard'),edit=$('accountEditArea');if(!identityComplete(x)){if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Renseignez vos coordonnées Couteau Suisse.');return}var verified=false;try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});verified=!!(r.ok&&j&&j.verified);if(verified&&j.identity)x=saveIdentityLocal(j.identity)}catch(_){}if(verified){if(card)card.classList.remove('hidden');if(edit)edit.classList.add('hidden');if($('confirmedAccountName'))$('confirmedAccountName').textContent=(clean(x.firstName)+' '+clean(x.lastName)).trim();if($('confirmedAccountEmail'))$('confirmedAccountEmail').textContent=clean(x.email);status('accountLinkStatus','✅ Compte confirmé et lié.','ok')}else{if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Coordonnées enregistrées. Confirmation Couteau Suisse en attente.')}} 
 async function loadMembers(){var list=$('membersList');if(list)list.innerHTML='';status('membersStatus','Chargement des personnes inscrites…');var x=identity()||{};try{var r=await fetch(API_BASE+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.ok&&Array.isArray(j.members)){var rows=j.members;if(list)list.innerHTML=rows.length?rows.map(function(m){var name=(clean(m.firstName)+' '+clean(m.lastName)).trim()||clean(m.name)||'Membre Champignons';return '<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(name)+'</b><small>Inscrit à Champignons</small></div></div>'}).join(''):'<div class="empty">Aucune autre personne inscrite.</div>';status('membersStatus',rows.length+' personne'+(rows.length>1?'s':'')+' inscrite'+(rows.length>1?'s':'')+'.','ok');return}}catch(_){}var selfName=(clean(x.firstName)+' '+clean(x.lastName)).trim();if(list&&selfName)list.innerHTML='<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(selfName)+'</b><small>Compte Champignons confirmé sur ce téléphone</small></div></div>';status('membersStatus','La liste complète des inscrits sera affichée dès que le serveur Champignons la fournit. Votre compte confirmé est affiché ci-dessous.',selfName?'ok':'bad')}
-function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref();refreshSavedPositionPanel()}
+function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref();refreshSavedPositionPanel();refreshNotificationSettings()}
 function closeMushSettings(){var x=$('mushSettings');x.classList.add('hidden');x.setAttribute('aria-hidden','true')}
 if($('mushSettingsBtn'))$('mushSettingsBtn').onclick=openMushSettings;
 if($('closeMushSettings'))$('closeMushSettings').onclick=closeMushSettings;
 if($('openAccountPanelBtn'))$('openAccountPanelBtn').onclick=function(){openSettingsPanel('accountPanel')};
 if($('openPositionPanelBtn'))$('openPositionPanelBtn').onclick=function(){openSettingsPanel('positionPanel')};
 if($('openGpsPanelBtn'))$('openGpsPanelBtn').onclick=function(){openSettingsPanel('gpsPanel')};
+if($('openNotificationsPanelBtn'))$('openNotificationsPanelBtn').onclick=function(){openSettingsPanel('notificationsPanel');refreshNotificationSettings()};
 if($('openMembersPanelBtn'))$('openMembersPanelBtn').onclick=function(){openSettingsPanel('membersPanel')};
 if($('openEdiblePanelBtn'))$('openEdiblePanelBtn').onclick=function(){openSettingsPanel('ediblePanel')};
 if($('refreshMembersBtn'))$('refreshMembersBtn').onclick=loadMembers;
+if($('toggleNotificationsBtn'))$('toggleNotificationsBtn').onclick=toggleNotifications;
+if($('openNotificationSettingsBtn'))$('openNotificationSettingsBtn').onclick=openNotificationSystemSettings;
+if($('testNotificationBtn'))$('testNotificationBtn').onclick=testChampignonsNotification;
 if($('edibleSearch'))$('edibleSearch').addEventListener('input',function(){renderEdibleCatalog(this.value)});
 Array.from(document.querySelectorAll('[data-close-panel]')).forEach(function(b){b.onclick=closeAllSettingsPanels});
 if($('saveCouteauAccountBtn'))$('saveCouteauAccountBtn').onclick=saveCouteauAccount;
@@ -1199,5 +1281,5 @@ Array.from(document.querySelectorAll('[data-gps]')).forEach(function(b){b.onclic
 function refreshInstallButton(){var b=$('installAppBtn');if(!b)return;b.textContent=isStandaloneApp()?'INSTALLÉE':'INSTALLER'}
 window.addEventListener('appinstalled',refreshInstallButton);
 window.addEventListener('load',function(){setTimeout(checkMushroomOpportunity,2200)});
-window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&identityComplete())refreshAccountLinkStatus(true)});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');importSharedWoodFromUrl();handleChampignonsConfirmationReturn().then(function(done){if(!done)startEntryGate()}).catch(function(){startEntryGate()});
+window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){if(identityComplete())refreshAccountLinkStatus(true);refreshNotificationSettings()}});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');importSharedWoodFromUrl();handleChampignonsConfirmationReturn().then(function(done){if(!done)startEntryGate()}).catch(function(){startEntryGate()});
 })();
