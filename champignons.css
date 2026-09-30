@@ -427,3 +427,17 @@
 .mushroomAlertSafety{margin-top:12px;padding:10px;border-radius:12px;background:#3a2d05;border:1px solid #d0a933;color:#fff3ba;font-size:12px;line-height:1.4;font-weight:800}
 .mushroomAlertHomeBtn{margin-top:auto;width:100%;min-height:62px;border:0;border-radius:16px;background:#1ca94f;color:#fff;font-size:18px;font-weight:1000;padding:12px}
 @media(max-width:520px){.mushroomAlertCard h2{font-size:27px}.mushroomAlertPhoto{height:30vh}.visitReportButtons{grid-template-columns:1fr 1fr}}
+
+/* V41 — confirmation et infos avant GPS */
+.visitConfirmOverlay{position:fixed;inset:0;z-index:5200;background:rgba(2,8,4,.86);display:flex;align-items:center;justify-content:center;padding:16px}
+.visitConfirmOverlay.hidden{display:none}
+.visitConfirmCard{width:min(520px,100%);background:#102219;border:2px solid #59c77d;border-radius:22px;padding:18px;box-shadow:0 18px 70px rgba(0,0,0,.55)}
+.visitConfirmCard h2{margin:0 0 10px;font-size:24px;line-height:1.1}
+.visitConfirmCard p{line-height:1.45;font-weight:800;color:#e8f4eb}
+.visitConfirmActions{display:grid;grid-template-columns:1fr 1fr;gap:9px;margin-top:14px}
+.goWoodInfoCard{max-height:88dvh;overflow:auto}
+.goWoodRecentReports{display:grid;gap:7px;margin:12px 0 14px}
+.goWoodReportRow{display:flex;justify-content:space-between;gap:10px;padding:9px 10px;border-radius:11px;background:#09160e;border:1px solid #31543e;font-weight:900}
+.goWoodReportRow.found{border-color:#2d8b4c}.goWoodReportRow.empty{border-color:#8a3e3e}
+.goWoodReportSummary{padding:10px;border-radius:12px;background:#1a2c20;border:1px solid #31543e;font-weight:900;margin-bottom:10px}
+@media(max-width:520px){.visitConfirmActions{grid-template-columns:1fr}.visitConfirmCard{padding:15px}}
