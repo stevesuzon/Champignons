@@ -403,3 +403,27 @@
 .adminPhotoButtons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
 .adminPhotoButtons .btn.selected{outline:3px solid #fff;outline-offset:1px;box-shadow:0 0 0 5px rgba(89,199,125,.22)}
 @media(max-width:520px){.adminPhotoButtons{grid-template-columns:1fr}}
+
+/* V40 — signalements et grosse bulle */
+.visitReportBox{margin-top:12px;padding-top:12px;border-top:1px solid #31543e}
+.visitReportTitle{font-weight:1000;margin-bottom:8px}
+.visitReportButtons{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.visitReportButtons button{min-height:52px;border:0;border-radius:13px;color:#fff;font-weight:1000;padding:9px}
+.visitFoundBtn{background:#168846}.visitEmptyBtn{background:#8b3232}
+.visitReportList{display:grid;gap:6px;margin-top:9px}
+.visitReportRow{display:flex;justify-content:space-between;gap:10px;padding:8px 10px;border-radius:10px;background:#0a1810;border:1px solid #294a35;font-size:13px;font-weight:800}
+.visitReportRow.found{border-color:#2d8b4c}.visitReportRow.empty{border-color:#754040}
+.visitReportNone{font-size:12px;color:#abc2b3;margin-top:8px}
+.mushroomAlertOverlay{position:fixed;inset:0;z-index:5000;background:rgba(2,8,4,.94);display:flex;align-items:stretch;justify-content:center;padding:max(12px,env(safe-area-inset-top)) 12px max(12px,env(safe-area-inset-bottom));overflow:auto}
+.mushroomAlertOverlay.hidden{display:none}
+.mushroomAlertCard{width:min(680px,100%);min-height:calc(100dvh - 24px);margin:auto;background:linear-gradient(180deg,#173520 0%,#0b1b10 100%);border:2px solid #5fd580;border-radius:24px;padding:18px;display:flex;flex-direction:column;box-shadow:0 18px 70px rgba(0,0,0,.55)}
+.mushroomAlertBadge{align-self:center;background:#ffdf64;color:#16200f;border-radius:999px;padding:8px 14px;font-size:14px;font-weight:1000;letter-spacing:.5px;margin-bottom:12px}
+.mushroomAlertPhoto{width:100%;height:min(34vh,280px);object-fit:cover;border-radius:18px;border:2px solid #31543e;background:#0c1b11}
+.mushroomAlertCard h2{font-size:30px;line-height:1.05;margin:16px 0 6px;text-align:center}
+.mushroomAlertSpecies{text-align:center;font-size:22px;font-weight:1000;color:#a9f2bd;margin-bottom:12px}
+.mushroomAlertInfo,.mushroomAlertPeople{display:grid;gap:8px;padding:12px;border-radius:15px;background:#102219;border:1px solid #31543e;margin-top:10px;line-height:1.4}
+.mushroomAlertInfo b,.mushroomAlertPeople b{color:#dff7e6}
+.mushroomSeasonUrgent{background:#4f1c14!important;border-color:#ff775e!important;color:#ffe3da}
+.mushroomAlertSafety{margin-top:12px;padding:10px;border-radius:12px;background:#3a2d05;border:1px solid #d0a933;color:#fff3ba;font-size:12px;line-height:1.4;font-weight:800}
+.mushroomAlertHomeBtn{margin-top:auto;width:100%;min-height:62px;border:0;border-radius:16px;background:#1ca94f;color:#fff;font-size:18px;font-weight:1000;padding:12px}
+@media(max-width:520px){.mushroomAlertCard h2{font-size:27px}.mushroomAlertPhoto{height:30vh}.visitReportButtons{grid-template-columns:1fr 1fr}}
