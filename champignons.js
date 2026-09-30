@@ -854,6 +854,16 @@ async function loadOfficialMushroomWeather(pos){
 }
 function chooseAlertProfile(weather,found){
   var candidates=MUSHROOM_ALERT_PROFILES.filter(function(p){return conditionsFavorProfile(p,weather)});
+  if(!candidates.length){
+    var rt=Number(weather&&weather.rainToday||0),rm=Number(weather&&weather.rainTomorrow||0),rainSoon=rt>=2||rm>=2||(rt+rm)>=4;
+    if(rainSoon){
+      var t=Number(weather.tempAvg),tf=Number(weather.tempToday);if(!Number.isFinite(t))t=tf;
+      candidates=MUSHROOM_ALERT_PROFILES.filter(function(p){
+        var si=seasonInfo(p,new Date()),tempNear=!Number.isFinite(t)||(t>=p.tmin-3&&t<=p.tmax+3);
+        return si.inSeason&&tempNear
+      })
+    }
+  }
   if(!candidates.length)return null;
   for(var i=0;i<(found||[]).length;i++){var p=alertProfileForSpecies(found[i].species);if(p&&candidates.indexOf(p)>=0)return p}
   return candidates[0]
