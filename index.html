@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=46">
+<link rel="manifest" href="manifest.webmanifest?v=47">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=46">
+<link rel="stylesheet" href="champignons.css?v=47">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -58,19 +58,28 @@
 <div id="editSpotModal" class="editModal hidden"><div class="editCard"><h3>Modifier la fiche</h3><input id="editSpotId" type="hidden"><label>Nom du bois<input id="editWoodName" maxlength="140"></label><label>Champignons signalés<input id="editSpecies" maxlength="120"></label><label>Commentaire<textarea id="editNote" maxlength="500"></textarea></label><div class="woodCategoryField"><b>Type de bois</b><p class="woodTypeHelp">Aucune case cochée = <b>🌳 BOIS PUBLIC</b>. Les deux cases peuvent être cochées ensemble.</p><div class="woodTypeChoices bigWoodTypeChoices"><label class="woodTypeChoice private"><input id="editPrivate" type="checkbox" value="private"><span>🔒 BOIS PRIVÉ</span></label><label class="woodTypeChoice hunting"><input id="editHunting" type="checkbox" value="hunting"><span>🦌 BOIS DE CHASSE</span></label></div></div><div class="editActions"><button id="saveEditBtn" class="btn">ENREGISTRER</button><button id="cancelEditBtn" class="btn secondary">ANNULER</button></div><div id="editStatus" class="status"></div></div></div>
 </div>
 </main>
-<div id="firstEntryGate" class="standaloneOverlay onboardingOverlay hidden" aria-hidden="true"><div class="standalonePanel onboardingPanel">
-  <div class="onboardingLogo">🍄</div>
-  <h2>BIENVENUE DANS CHAMPIGNONS</h2>
-  <p class="onboardingLead">Pour entrer, renseignez <b>exactement le même nom, le même prénom et la même adresse e-mail</b> que dans votre compte <b>Couteau Suisse</b>.</p>
-  <div class="entryFields">
-    <label for="entryLastName">NOM</label><input id="entryLastName" maxlength="80" autocomplete="family-name" placeholder="Votre nom">
-    <label for="entryFirstName">PRÉNOM</label><input id="entryFirstName" maxlength="80" autocomplete="given-name" placeholder="Votre prénom">
-    <label for="entryEmail">ADRESSE E-MAIL</label><input id="entryEmail" type="email" inputmode="email" maxlength="190" autocomplete="email" placeholder="votre@email.fr">
+<div id="firstEntryGate" class="standaloneOverlay onboardingOverlay hidden" aria-hidden="true">
+  <div class="standalonePanel onboardingPanel promoEntryPanel">
+    <div class="promoEntryHero">
+      <img class="promoEntryMushroom" src="champignon-cepe.svg" alt="">
+      <div class="promoEntryTitle">CHAMPIGNONS <span>GRATUIT</span></div>
+    </div>
+    <div class="promoFreeUntil">📅 Gratuit jusqu’au 31 décembre 2026</div>
+    <p class="promoEntryLead">Pour accéder à l’application, entrez le <b>même nom, prénom et adresse e-mail</b> que dans Couteau Suisse.</p>
+
+    <div class="entryFields promoEntryFields">
+      <label class="promoInputRow" for="entryLastName"><span class="promoInputIcon">👤</span><input id="entryLastName" maxlength="80" autocomplete="family-name" placeholder="Nom"></label>
+      <label class="promoInputRow" for="entryFirstName"><span class="promoInputIcon">👤</span><input id="entryFirstName" maxlength="80" autocomplete="given-name" placeholder="Prénom"></label>
+      <label class="promoInputRow" for="entryEmail"><span class="promoInputIcon">✉️</span><input id="entryEmail" type="email" inputmode="email" maxlength="190" autocomplete="email" placeholder="Adresse e-mail"></label>
+    </div>
+
+    <button id="entryContinueBtn" class="promoEntryButton" type="button">➜ ACCÉDER À L’APPLICATION</button>
+    <div class="promoSavedInfo">🛡️ Une fois enregistré, ces informations ne seront plus redemandées.</div>
+    <div class="promoWarning">⚠️ Si le nom, le prénom ou l’adresse e-mail ne correspondent pas à Couteau Suisse, l’accès ne marche pas.</div>
+    <div id="entryStatus" class="status promoEntryStatus"></div>
+    <div id="entryNeedCouteau" class="entryNeedCouteau hidden"><p><b>Compte Couteau Suisse non reconnu.</b><br>Vérifiez les trois informations puis réessayez.</p><a id="openCouteauSuisseBtn" class="btn blue" href="https://carplay-telephone.appli-suzon.workers.dev/">OUVRIR COUTEAU SUISSE</a></div>
   </div>
-  <button id="entryContinueBtn" class="btn entryContinueBtn">🍄 ENTRER DANS CHAMPIGNONS</button>
-  <div id="entryStatus" class="status">Après vérification, un e-mail de confirmation Champignons vous sera envoyé. Le lien du mail vous ramènera directement vers Champignons.</div>
-  <div id="entryNeedCouteau" class="entryNeedCouteau hidden"><p><b>Compte Couteau Suisse non trouvé ou non confirmé.</b><br>Inscrivez-vous d’abord sur Couteau Suisse, puis revenez ici avec les mêmes nom, prénom et e-mail.</p><a id="openCouteauSuisseBtn" class="btn blue" href="https://carplay-telephone.appli-suzon.workers.dev/">OUVRIR COUTEAU SUISSE</a></div>
-</div></div>
+</div>
 <div id="unlockGate" class="standaloneOverlay unlockOverlay hidden" aria-hidden="true"><div class="standalonePanel unlockPanel">
   <div class="onboardingLogo">🍄</div>
   <h2>ACTIVER CHAMPIGNONS</h2>
@@ -149,11 +158,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=46"></script>
-<script src="champignons.js?v=46" defer></script>
+<script src="config.js?v=47"></script>
+<script src="champignons.js?v=47" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=46',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=47',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
