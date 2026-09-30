@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=39">
+<link rel="manifest" href="manifest.webmanifest?v=40">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=39">
+<link rel="stylesheet" href="champignons.css?v=40">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -112,16 +112,28 @@
 </div>
   <div id="settingsLinkedFooter" class="settingsLinkedFooter">🍄 Application Champignons liée à Couteau Suisse</div>
 </div></div>
+<div id="mushroomAlertBubble" class="mushroomAlertOverlay hidden" aria-hidden="true">
+  <div class="mushroomAlertCard" role="dialog" aria-modal="true" aria-labelledby="mushroomAlertTitle">
+    <div class="mushroomAlertBadge">🍄 BON MOMENT</div>
+    <img id="mushroomAlertPhoto" class="mushroomAlertPhoto" alt="Champignon concerné">
+    <h2 id="mushroomAlertTitle">Bon moment pour les champignons</h2>
+    <div id="mushroomAlertSpecies" class="mushroomAlertSpecies"></div>
+    <div id="mushroomAlertInfo" class="mushroomAlertInfo"></div>
+    <div id="mushroomAlertPeople" class="mushroomAlertPeople"></div>
+    <div class="mushroomAlertSafety">⚠️ Conditions favorables ne veut pas dire présence garantie. La photo est illustrative et ne doit jamais servir seule à décider qu’un champignon peut être consommé.</div>
+    <button id="mushroomAlertHomeBtn" type="button" class="mushroomAlertHomeBtn">🏠 REVENIR À L’ACCUEIL</button>
+  </div>
+</div>
 <div id="installHelp" class="standaloneOverlay hidden" aria-hidden="true"><div class="standalonePanel installPanel">
   <button id="closeInstallHelp" class="overlayClose" type="button">×</button>
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=39"></script>
-<script src="champignons.js?v=39" defer></script>
+<script src="config.js?v=40"></script>
+<script src="champignons.js?v=40" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=39',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=40',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
