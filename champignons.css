@@ -661,3 +661,18 @@
   .woodGrid .woodSeasonMain span,
   .woodGrid .woodWhereMain span{font-size:13px!important}
 }
+
+/* V46 — acces gratuit temporaire */
+.freeAccessBanner{
+  margin:0 0 10px;
+  padding:9px 10px;
+  border:2px solid #64d98b;
+  border-radius:12px;
+  background:#10351f;
+  color:#dfffea;
+  text-align:center;
+  font-size:14px;
+  line-height:1.15;
+  font-weight:1000
+}
+.temporaryRegistrationHidden{display:none!important}
