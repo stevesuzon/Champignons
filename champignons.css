@@ -390,3 +390,16 @@
 .edibleInfo.confusion{background:#38290a;border:1px solid #9b7922}
 .edibleInfo.cook{background:#1b2b3b;border:1px solid #426c93;margin-bottom:11px}
 @media(min-width:760px){.edibleCatalog{grid-template-columns:repeat(2,minmax(0,1fr))}}
+
+/* V39 — ajout bois par adresse + choix photo administrateur */
+.locationOr{display:flex;align-items:center;justify-content:center;margin:12px 0;font-weight:1000;color:#9fc8ab;letter-spacing:1px}
+.locationOr:before,.locationOr:after{content:'';height:1px;background:#31543e;flex:1;margin:0 10px}
+.addressEntry{display:grid;gap:8px;margin-top:6px}
+.addressEntry label{font-weight:1000;color:#dff5e5}
+.addressEntry input{width:100%;min-height:52px;border:2px solid #4c7458;border-radius:12px;background:#07130d;color:#fff;padding:11px 12px;font-weight:800}
+.addressEntry input:focus{outline:3px solid rgba(56,189,98,.25);border-color:#59c77d}
+.adminPhotoChoice{border-color:#b690ff;background:#17152b}
+.adminPhotoChoice h3{color:#d8c5ff}
+.adminPhotoButtons{display:grid;grid-template-columns:1fr 1fr;gap:9px}
+.adminPhotoButtons .btn.selected{outline:3px solid #fff;outline-offset:1px;box-shadow:0 0 0 5px rgba(89,199,125,.22)}
+@media(max-width:520px){.adminPhotoButtons{grid-template-columns:1fr}}
