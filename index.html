@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=44">
+<link rel="manifest" href="manifest.webmanifest?v=45">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=44">
+<link rel="stylesheet" href="champignons.css?v=45">
 
 </head><body>
 <header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
@@ -60,14 +60,14 @@
 <div id="firstEntryGate" class="standaloneOverlay onboardingOverlay hidden" aria-hidden="true"><div class="standalonePanel onboardingPanel">
   <div class="onboardingLogo">🍄</div>
   <h2>BIENVENUE DANS CHAMPIGNONS</h2>
-  <p class="onboardingLead">Pour entrer, renseignez les mêmes coordonnées que dans votre compte <b>Couteau Suisse</b>.</p>
+  <p class="onboardingLead">Pour entrer, renseignez <b>exactement le même nom, le même prénom et la même adresse e-mail</b> que dans votre compte <b>Couteau Suisse</b>.</p>
   <div class="entryFields">
     <label for="entryLastName">NOM</label><input id="entryLastName" maxlength="80" autocomplete="family-name" placeholder="Votre nom">
     <label for="entryFirstName">PRÉNOM</label><input id="entryFirstName" maxlength="80" autocomplete="given-name" placeholder="Votre prénom">
     <label for="entryEmail">ADRESSE E-MAIL</label><input id="entryEmail" type="email" inputmode="email" maxlength="190" autocomplete="email" placeholder="votre@email.fr">
   </div>
   <button id="entryContinueBtn" class="btn entryContinueBtn">🍄 ENTRER DANS CHAMPIGNONS</button>
-  <div id="entryStatus" class="status">Vos coordonnées servent à reconnaître votre compte Couteau Suisse.</div>
+  <div id="entryStatus" class="status">Après vérification, un e-mail de confirmation Champignons vous sera envoyé. Le lien du mail vous ramènera directement vers Champignons.</div>
   <div id="entryNeedCouteau" class="entryNeedCouteau hidden"><p><b>Compte Couteau Suisse non trouvé ou non confirmé.</b><br>Inscrivez-vous d’abord sur Couteau Suisse, puis revenez ici avec les mêmes nom, prénom et e-mail.</p><a id="openCouteauSuisseBtn" class="btn blue" href="https://carplay-telephone.appli-suzon.workers.dev/">OUVRIR COUTEAU SUISSE</a></div>
 </div></div>
 <div id="unlockGate" class="standaloneOverlay unlockOverlay hidden" aria-hidden="true"><div class="standalonePanel unlockPanel">
@@ -148,11 +148,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=44"></script>
-<script src="champignons.js?v=44" defer></script>
+<script src="config.js?v=45"></script>
+<script src="champignons.js?v=45" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=44',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=45',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
