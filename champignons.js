@@ -7,11 +7,13 @@ var MAIN_CODE_KEY='champignons_main_subscription_code_v1';
 var IDENTITY_KEY='carplay_app_identity_v240';
 var state={gps:null,photo:null,analysis:null,stream:null,accessToken:'',spots:[],lastMode:'nearby',addMode:'add',currentGps:null,browseSection:'public',justImportedSharedWood:false,verifyTargetId:'',shareTargetWood:null,shareMembers:[],photoMode:'with'};
 var FREE_UNTIL_CACHE_KEY='carplay_contest_app_free_until_ms';
+var TEMP_FREE_UNTIL_MS=Date.parse('2026-12-31T23:59:59+01:00');
+function temporaryFreeActive(){return Date.now()<=TEMP_FREE_UNTIL_MS}
 var ONBOARDING_KEY='champignons_onboarding_v5';
 var CAR_POSITION_KEY='champignons_car_position_v1';
 var USER_POSITION_KEY='champignons_user_position_v1';
-function cachedTrialUntil(){var ms=0;try{ms=Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY)||0)}catch(_){}return Number.isFinite(ms)&&ms>0?ms:0}
-async function syncTrialUntil(){var cached=cachedTrialUntil();try{var r=await fetch(API_BASE+'/api/contest/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}),j=await r.json();var ms=Number(j&&j.appFreeUntil||0);if(r.ok&&ms>0){try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(ms))}catch(_){}return ms}}catch(_){}return cached}
+function cachedTrialUntil(){var ms=0;try{ms=Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY)||0)}catch(_){}if(temporaryFreeActive())ms=Math.max(Number.isFinite(ms)?ms:0,TEMP_FREE_UNTIL_MS);return Number.isFinite(ms)&&ms>0?ms:0}
+async function syncTrialUntil(){var cached=cachedTrialUntil();try{var r=await fetch(API_BASE+'/api/contest/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}),j=await r.json();var ms=Number(j&&j.appFreeUntil||0);if(temporaryFreeActive())ms=Math.max(Number.isFinite(ms)?ms:0,TEMP_FREE_UNTIL_MS);if(r.ok&&ms>0){try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(ms))}catch(_){}return ms}}catch(_){}return cached}
 function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
 function esc(v){return clean(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function deviceId(){var v=localStorage.getItem('carplay_device_id');if(!v){v=(crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('carplay_device_id',v)}return v}
@@ -195,22 +197,33 @@ function setPhotoMode(mode){
 function refreshAdminPhotoChoice(){setPhotoMode(isAdminAccount()&&state.photoMode==='without'?'without':'with')}
 
 async function checkAccess(){
-  var x=identity()||{},hasProfile=identityComplete(x),legacyCode=clean(localStorage.getItem(MAIN_CODE_KEY)||'');
-  if(!hasProfile&&!legacyCode){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Application Champignons : compte à renseigner dans Réglages.';show('homeView');return false}
-  if(hasProfile){
+  var x=identity()||{},hasProfile=identityComplete(x),legacyCode=clean(localStorage.getItem(MAIN_CODE_KEY)||''),free=temporaryFreeActive();
+  if(!free&&!hasProfile&&!legacyCode){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Application Champignons : compte à renseigner dans Réglages.';show('homeView');return false}
+  if(!free&&hasProfile){
     try{
       var vr=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(identityStatusPayload(x)),cache:'no-store'}),vj=await vr.json().catch(function(){return {}});
-      if(vr.ok&&vj&&vj.verified){var remoteId=responseIdentity(vj);if(remoteId&&!sameCouteauIdentity(x,remoteId)){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Les informations Champignons ne correspondent pas au compte Couteau Suisse.';show('homeView');return false}if(remoteId)saveIdentityLocal(remoteId);if($('accountLinkStatus'))status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok')}
-      else if(!legacyCode){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Application Champignons liée à Couteau Suisse — '+clean(x.firstName)+' '+clean(x.lastName)+' — e-mail à confirmer.';show('homeView');return false}
-    }catch(_){if(!legacyCode){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Application Champignons liée à Couteau Suisse — vérification en attente.';show('homeView');return false}}
+      if(vr.ok&&vj&&vj.verified){var remoteId=responseIdentity(vj);if(remoteId&&!sameCouteauIdentity(x,remoteId)){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Les informations Champignons ne correspondent pas au compte Couteau Suisse.';show('homeView');return false}if(remoteId)saveIdentityLocal(remoteId)}
+      else if(!legacyCode){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent='Application Champignons liée à Couteau Suisse — e-mail à confirmer.';show('homeView');return false}
+    }catch(_){if(!legacyCode){state.accessToken='';show('homeView');return false}}
   }
   try{
-    var r=await fetch(API_BASE+'/api/mushrooms/access',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(accessPayload({action:'status'})),cache:'no-store'}),j=await r.json().catch(function(){return {}});
-    if(r.ok&&j&&j.ok&&j.active){state.accessToken=j.accessToken||'';var a=j.account||identity()||{};if($('identityInfo'))$('identityInfo').textContent='Application Champignons liée à Couteau Suisse — '+((clean(a.firstName)+' '+clean(a.lastName)).trim()||'compte confirmé');if($('accountLinkStatus'))status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');show('homeView');return true}
-    state.accessToken='';if($('identityInfo'))$('identityInfo').textContent=hasProfile?'Application Champignons liée à Couteau Suisse — synchronisation en attente.':'Application Champignons : compte à renseigner dans Réglages.';show('homeView');return false
-  }catch(_){state.accessToken='';if($('identityInfo'))$('identityInfo').textContent=hasProfile?'Application Champignons liée à Couteau Suisse — connexion serveur indisponible.':'Application Champignons : compte à renseigner dans Réglages.';show('homeView');return false}
+    var r=await fetch(API_BASE+'/api/mushrooms/access',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(accessPayload({action:'status',temporaryFree:free,freeUntil:TEMP_FREE_UNTIL_MS})),cache:'no-store'}),j=await r.json().catch(function(){return {}});
+    if(r.ok&&j&&j.ok&&j.active){
+      state.accessToken=j.accessToken||'';
+      if($('identityInfo'))$('identityInfo').textContent=free?'🎁 Champignons gratuit jusqu’au 31/12/2026':'Application Champignons activée';
+      show('homeView');return true
+    }
+  }catch(_){}
+  if(free){
+    state.accessToken='';
+    if($('identityInfo'))$('identityInfo').textContent='🎁 Champignons gratuit jusqu’au 31/12/2026';
+    show('homeView');return true
+  }
+  state.accessToken='';
+  if($('identityInfo'))$('identityInfo').textContent=hasProfile?'Application Champignons — synchronisation en attente.':'Application Champignons : compte à renseigner.';
+  show('homeView');return false
 }
-async function requireRemoteAccess(){if(state.accessToken)return true;var ok=await checkAccess();if(ok)return true;openMushSettings();status('accountLinkStatus','Renseignez puis liez le même nom, prénom et e-mail que dans Couteau Suisse pour utiliser la synchronisation et la reconnaissance.','bad');return false}
+async function requireRemoteAccess(){if(state.accessToken)return true;var ok=await checkAccess();if(ok)return true;if(temporaryFreeActive())return true;openMushSettings();status('accountLinkStatus','Renseignez puis liez le même nom, prénom et e-mail que dans Couteau Suisse pour utiliser la synchronisation et la reconnaissance.','bad');return false}
 async function analyze(){var ai=$('aiPanel');ai.classList.add('open');status('aiStatus','Analyse du champignon en cours…');$('saveSpotBtn').disabled=true;try{var r=await fetch(API_BASE+'/api/mushrooms/analyze',{method:'POST',headers:authHeaders(),body:JSON.stringify({dataUrl:state.photo.dataUrl,latitude:state.photo.photoLat,longitude:state.photo.photoLon,accuracy:state.photo.photoAccuracy,capturedAt:state.photo.capturedAt}),cache:'no-store'}),j=await r.json();if(!r.ok||!j.ok)throw new Error(j&&j.error==='AUCUN_CHAMPIGNON'?'Photo refusée : il faut photographier un vrai champignon non cueilli, encore en terre.':(j&&j.message)||'Analyse impossible.');state.analysis=j;var detected=clean(j.commonName||j.species||''),conf=Number(j.confidence||0),certain=speciesIsUsable(detected)&&conf>=55;$('speciesInput').value=certain?detected:'';updateGuide();if(certain)status('aiStatus','✅ Champignon reconnu : '+detected+(j.scientificName?' ('+j.scientificName+')':'')+' · confiance '+Math.round(conf)+' %. Vérifiez le nom avant d’enregistrer.','ok');else status('aiStatus','✅ Champignon bien détecté, mais l’espèce n’est pas assez certaine. Tapez 1 ou 2 lettres dans « Quel champignon ? » puis touchez la proposition.','ok');refreshSaveState()}catch(e){state.analysis=null;$('speciesInput').value='';showSpeciesMatches();refreshSaveState();status('aiStatus','❌ '+(e.message||'Photo refusée.'),'bad')}}
 function resetAdd(){
   stopCamera();state.gps=null;state.photo=null;state.analysis=null;state.photoMode='with';
@@ -988,6 +1001,7 @@ async function submitFirstEntry(){
   }finally{b.disabled=false}
 }
 async function handleChampignonsConfirmationReturn(){
+  if(temporaryFreeActive()){try{history.replaceState(null,'',location.pathname)}catch(_){}setEntryGate(false);setUnlockGate(false);return false}
   var qp;try{qp=new URLSearchParams(location.search)}catch(_){return false}
   if(qp.get('champignons_confirmed')!=='1')return false;
   try{history.replaceState(null,'',location.pathname)}catch(_){}
@@ -1005,7 +1019,18 @@ async function handleChampignonsConfirmationReturn(){
   }catch(_){}
   status('entryStatus','E-mail confirmé. Vérification en cours…','ok');watchEntryVerification();return true
 }
-async function startEntryGate(){fillEntryFields();if($('openCouteauSuisseBtn'))$('openCouteauSuisseBtn').href=COUTEAU_SUISSE_URL;var done=false;try{done=localStorage.getItem(ONBOARDING_KEY)==='1'}catch(_){}if(done&&identityComplete()){setEntryGate(false);var ok=await checkAccess();if(ok){setUnlockGate(false);return}try{localStorage.removeItem(MAIN_CODE_KEY)}catch(_){}showUnlockGate();return}setEntryGate(true)}
+async function startEntryGate(){
+  if(temporaryFreeActive()){
+    setEntryGate(false);setUnlockGate(false);
+    try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}
+    await checkAccess();show('homeView');return
+  }
+  fillEntryFields();
+  if($('openCouteauSuisseBtn'))$('openCouteauSuisseBtn').href=COUTEAU_SUISSE_URL;
+  var done=false;try{done=localStorage.getItem(ONBOARDING_KEY)==='1'}catch(_){}
+  if(done&&identityComplete()){setEntryGate(false);var ok=await checkAccess();if(ok){setUnlockGate(false);return}try{localStorage.removeItem(MAIN_CODE_KEY)}catch(_){}showUnlockGate();return}
+  setEntryGate(true)
+}
 
 var EDIBLE_MUSHROOM_CATALOG=[
 {name:'Cèpe de Bordeaux',scientific:'Boletus edulis',recognize:'Chapeau brun noisette à brun foncé, dessous à tubes blancs puis jaune-olive, pied trapu clair avec fin réseau blanc, chair blanche qui ne bleuit pas.',confusion:'Attention aux bolets amers ou toxiques : la photo seule ne suffit pas.',cook:'Après confirmation certaine : nettoyer sans tremper, couper et cuire complètement à la poêle. Très utilisé en poêlée, sauce ou omelette.'},
@@ -1130,5 +1155,5 @@ Array.from(document.querySelectorAll('[data-gps]')).forEach(function(b){b.onclic
 function refreshInstallButton(){var b=$('installAppBtn');if(!b)return;b.textContent=isStandaloneApp()?'INSTALLÉE':'INSTALLER'}
 window.addEventListener('appinstalled',refreshInstallButton);
 window.addEventListener('load',function(){setTimeout(checkMushroomOpportunity,2200)});
-window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&identityComplete())refreshAccountLinkStatus(true)});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');importSharedWoodFromUrl();handleChampignonsConfirmationReturn().then(function(done){if(!done)startEntryGate()}).catch(function(){startEntryGate()});
+window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'&&identityComplete())refreshAccountLinkStatus(true)});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');importSharedWoodFromUrl();startEntryGate();
 })();
