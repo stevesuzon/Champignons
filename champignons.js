@@ -18,7 +18,11 @@ async function syncTrialUntil(){var cached=cachedTrialUntil();try{var r=await fe
 function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
 function esc(v){return clean(v).replace(/[&<>"']/g,function(c){return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
 function deviceId(){var v=localStorage.getItem('carplay_device_id');if(!v){v=(crypto.randomUUID?crypto.randomUUID():'dev-'+Date.now()+'-'+Math.random().toString(36).slice(2));localStorage.setItem('carplay_device_id',v)}return v}
-function identity(){try{if(window.CouteauSuisseGetIdentity){var x=window.CouteauSuisseGetIdentity();if(x)return x}}catch(_){}try{return JSON.parse(localStorage.getItem(IDENTITY_KEY)||'null')}catch(_){return null}}
+function storedCouteauIdentity(){
+  try{if(window.CouteauSuisseGetIdentity){var x=window.CouteauSuisseGetIdentity();if(x)return x}}catch(_){}
+  try{return JSON.parse(localStorage.getItem(IDENTITY_KEY)||'null')}catch(_){return null}
+}
+function identity(){return storedCouteauIdentity()}
 
 function notificationPermissionState(){
   if(!('Notification' in window))return 'unsupported';
@@ -101,17 +105,32 @@ function isAdminAccount(){var x=identity()||{};return !!adminEmail()&&clean(x.em
 function saveIdentityLocal(x){var v={firstName:clean(x&&x.firstName),lastName:clean(x&&x.lastName),email:clean(x&&x.email).toLowerCase()};try{localStorage.setItem(IDENTITY_KEY,JSON.stringify(v));if(v.email)localStorage.setItem('carplay_recovery_email',v.email)}catch(_){}return v}
 function identityComplete(x){x=x||identity()||{};return clean(x.firstName).length>=2&&clean(x.lastName).length>=2&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(clean(x.email).toLowerCase())}
 function normIdentityName(v){return clean(v).normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/[^a-z0-9]+/g,' ').replace(/\s+/g,' ').trim()}
-function responseIdentity(j){return j&&((j.identity&&typeof j.identity==='object'&&j.identity)||(j.account&&typeof j.account==='object'&&j.account)||(j.user&&typeof j.user==='object'&&j.user))||null}
+function responseIdentity(j){
+  var r=j&&((j.identity&&typeof j.identity==='object'&&j.identity)||(j.account&&typeof j.account==='object'&&j.account)||(j.user&&typeof j.user==='object'&&j.user))||null;
+  if(!r)return null;
+  return{
+    firstName:clean(r.firstName||r.firstname||r.first_name||r.prenom||''),
+    lastName:clean(r.lastName||r.lastname||r.last_name||r.nom||''),
+    email:clean(r.email||r.mail||r.emailAddress||r.email_address||'').toLowerCase()
+  }
+}
 function sameCouteauIdentity(expected,remote){
   expected=expected||{};remote=remote||{};
-  return normIdentityName(expected.firstName)===normIdentityName(remote.firstName)
-    &&normIdentityName(expected.lastName)===normIdentityName(remote.lastName)
-    &&clean(expected.email).toLowerCase()===clean(remote.email).toLowerCase()
+  var ef=normIdentityName(expected.firstName),el=normIdentityName(expected.lastName),ee=clean(expected.email).toLowerCase();
+  var rf=normIdentityName(remote.firstName),rl=normIdentityName(remote.lastName),re=clean(remote.email).toLowerCase();
+  if(rf&&ef!==rf)return false;
+  if(rl&&el!==rl)return false;
+  if(re&&ee!==re)return false;
+  return !!(ef&&el&&ee)
 }
 function verifiedIdentityOrEntered(j,entered){
   var remote=responseIdentity(j);
   if(remote&&!sameCouteauIdentity(entered,remote))throw identityMismatchError();
-  return remote||entered
+  return{
+    firstName:clean(remote&&remote.firstName||entered.firstName),
+    lastName:clean(remote&&remote.lastName||entered.lastName),
+    email:clean(remote&&remote.email||entered.email).toLowerCase()
+  }
 }
 function identityStatusPayload(x){x=x||identity()||{};return{deviceId:deviceId(),email:clean(x.email).toLowerCase(),firstName:clean(x.firstName),lastName:clean(x.lastName),sourceApp:'champignons',appName:'Champignons'}}
 function identityMismatchError(){return{error:'IDENTITE_DIFFERENTE',message:'Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.'}}
@@ -1129,7 +1148,7 @@ function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLa
 async function loadExactEntryBackground(){
   var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
   try{
-    var r=await fetch('assets/entry-bg.b64?v=53',{cache:'force-cache'});
+    var r=await fetch('assets/entry-bg.b64?v=54',{cache:'force-cache'});
     if(!r.ok)throw new Error('image');
     var b64=(await r.text()).replace(/\s+/g,'');
     el.style.backgroundImage='url("data:image/webp;base64,'+b64+'")';
@@ -1143,12 +1162,20 @@ function watchEntryVerification(){if(entryWatchTimer)clearInterval(entryWatchTim
 async function submitFirstEntry(){
   var last=clean($('entryLastName').value),first=clean($('entryFirstName').value),email=clean($('entryEmail').value).toLowerCase(),b=$('entryContinueBtn');
   if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('entryStatus','❌ Remplissez le nom, le prénom et une adresse e-mail valide.','bad');return}
-  var entered={lastName:last,firstName:first,email:email};
-  saveIdentityLocal(entered);
+  var entered={lastName:last,firstName:first,email:email},trusted=storedCouteauIdentity();
   if($('entryNeedCouteau'))$('entryNeedCouteau').classList.add('hidden');
   b.disabled=true;
   status('entryStatus','Vérification avec votre compte Couteau Suisse…');
   try{
+    // Pendant la période gratuite, un compte Couteau Suisse déjà enregistré sur ce téléphone
+    // est la référence. On ne l’écrase jamais avant la comparaison.
+    if(temporaryFreeActive()&&identityComplete(trusted)&&sameCouteauIdentity(entered,trusted)){
+      try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}
+      status('entryStatus','✅ Compte Couteau Suisse reconnu. Ouverture de Champignons…','ok');
+      await finishEntry(trusted);
+      return
+    }
+
     var sr=await fetch(API_BASE+'/api/app-identity/status',{
       method:'POST',
       headers:{'content-type':'application/json'},
@@ -1163,11 +1190,8 @@ async function submitFirstEntry(){
       return
     }
 
-    if(temporaryFreeActive()){
-      if($('entryNeedCouteau'))$('entryNeedCouteau').classList.remove('hidden');
-      throw identityMismatchError()
-    }
-
+    // Deuxième contrôle : certains comptes Couteau Suisse existants sont reconnus par /start
+    // alors que /status ne les retrouve pas encore sur le nouvel identifiant Champignons.
     var confirmUrl=champignonsConfirmationUrl();
     var r=await fetch(API_BASE+'/api/app-identity/start',{
       method:'POST',
@@ -1182,15 +1206,23 @@ async function submitFirstEntry(){
     }),j=await r.json().catch(function(){return {}});
     if(r.ok&&j&&j.alreadyVerified){
       var already=verifiedIdentityOrEntered(j,entered);
-      status('entryStatus','✅ Compte reconnu. Ouverture de Champignons…','ok');
-      await finishEntry(already);return
+      status('entryStatus','✅ Compte Couteau Suisse reconnu. Ouverture de Champignons…','ok');
+      await finishEntry(already);
+      return
     }
+
+    if(temporaryFreeActive()){
+      if($('entryNeedCouteau'))$('entryNeedCouteau').classList.remove('hidden');
+      throw identityMismatchError()
+    }
+
     if(!r.ok||!j.ok)throw j;
+    saveIdentityLocal(entered);
     status('entryStatus','📧 Un e-mail de confirmation vient d’être envoyé. Touchez le lien dans le mail.','ok');
     watchEntryVerification()
   }catch(e){
     if($('entryNeedCouteau'))$('entryNeedCouteau').classList.remove('hidden');
-    status('entryStatus','❌ Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.','bad')
+    status('entryStatus','❌ Compte Couteau Suisse non reconnu. Vérifiez le nom, le prénom et l’adresse e-mail.','bad')
   }finally{b.disabled=false}
 }
 async function handleChampignonsConfirmationReturn(){
