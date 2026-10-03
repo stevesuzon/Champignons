@@ -683,42 +683,23 @@ async function internalShareRequest(kind,payload){
   throw new Error(last&&last.data&&(last.data.message||last.data.error)||'PARTAGE_INTERNE_INDISPONIBLE')
 }
 async function fetchAllChampignonsMembers(){
-  var body=JSON.stringify(accessPayload({action:'list'}));
-  var sources=[
-    {base:mushroomAiBase(),source:'worker'},
-    {base:API_BASE,source:'legacy'}
-  ],all=[];
-  for(var i=0;i<sources.length;i++){
-    try{
-      var src=sources[i],r=await fetch(src.base+'/api/mushrooms/members',{
-        method:'POST',headers:authHeaders(),body:body,cache:'no-store'
-      }),j=await r.json().catch(function(){return{}});
-      if(r.ok&&j&&j.ok&&Array.isArray(j.members)){
-        j.members.forEach(function(m){
-          if(!m||typeof m!=='object')return;
-          all.push(Object.assign({},m,{_memberSource:src.source}))
-        })
-      }
-    }catch(_){}
-  }
-  var seen={},out=[];
-  all.forEach(function(m){
-    var em=clean(m.email||'').toLowerCase(),
-        dev=clean(m.deviceId||m.device_id||''),
-        name=normIdentityName((clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||'')),
-        id=clean(m.id||m.memberId||m.userId||m.user_id||''),
-        key=em?'e:'+em:dev?'d:'+dev:name?'n:'+name:(m._memberSource+':'+id);
-    if(!key||seen[key])return;
-    seen[key]=1;out.push(m)
-  });
-  return out
+  try{
+    var r=await fetch(mushroomAiBase()+'/api/mushrooms/members',{
+      method:'POST',
+      headers:authHeaders(),
+      body:JSON.stringify(accessPayload({action:'list'})),
+      cache:'no-store'
+    }),j=await r.json().catch(function(){return{}});
+    if(r.ok&&j&&j.ok&&Array.isArray(j.members))return j.members;
+  }catch(_){}
+  return []
 }
 async function loadShareMembers(){
+  await syncChampignonsMember();
   var list=$('shareMemberList');if(list)list.innerHTML='';
   status('shareMemberStatus','Chargement des personnes inscrites…');
   var self=identity()||{},selfEmail=clean(self.email||'').toLowerCase(),selfName=normIdentityName((clean(self.firstName)+' '+clean(self.lastName)).trim());
   try{
-    await syncChampignonsMember();
     var rows=(await fetchAllChampignonsMembers()).filter(function(m){
       var em=clean(m&&m.email||'').toLowerCase(),
           nm=normIdentityName((clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||''));
@@ -1201,7 +1182,7 @@ function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLa
 async function loadExactEntryBackground(){
   var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
   try{
-    var r=await fetch('assets/entry-bg.b64?v=57',{cache:'force-cache'});
+    var r=await fetch('assets/entry-bg.b64?v=58',{cache:'force-cache'});
     if(!r.ok)throw new Error('image');
     var b64=(await r.text()).replace(/\s+/g,'');
     el.style.backgroundImage='url("data:image/webp;base64,'+b64+'")';
@@ -1403,12 +1384,12 @@ function closeAllSettingsPanels(){['accountPanel','positionPanel','gpsPanel','me
 function openSettingsPanel(id){closeAllSettingsPanels();var m=document.querySelector('.settingsMenu');if(m)m.classList.add('hidden');var e=$(id);if(e)e.classList.remove('hidden');if(id==='accountPanel')refreshAccountPanel();if(id==='positionPanel')refreshSavedPositionPanel();if(id==='gpsPanel')refreshGpsPref();if(id==='membersPanel')loadMembers();if(id==='ediblePanel')renderEdibleCatalog($('edibleSearch')&&$('edibleSearch').value||'')}
 async function refreshAccountPanel(){fillAccountFields();var x=identity()||{},card=$('accountConfirmedCard'),edit=$('accountEditArea');if(!identityComplete(x)){if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Renseignez vos coordonnées Couteau Suisse.');return}var verified=false;try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});verified=!!(r.ok&&j&&j.verified);if(verified&&j.identity)x=saveIdentityLocal(j.identity)}catch(_){}if(verified){if(card)card.classList.remove('hidden');if(edit)edit.classList.add('hidden');if($('confirmedAccountName'))$('confirmedAccountName').textContent=(clean(x.firstName)+' '+clean(x.lastName)).trim();if($('confirmedAccountEmail'))$('confirmedAccountEmail').textContent=clean(x.email);status('accountLinkStatus','✅ Compte confirmé et lié.','ok')}else{if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Coordonnées enregistrées. Confirmation Couteau Suisse en attente.')}} 
 async function loadMembers(){
+  await syncChampignonsMember();
   var list=$('membersList');if(list)list.innerHTML='';
   status('membersStatus','Chargement des personnes inscrites…');
   var x=identity()||{},selfName=(clean(x.firstName)+' '+clean(x.lastName)).trim(),
       selfEmail=clean(x.email||'').toLowerCase(),selfNorm=normIdentityName(selfName);
   try{
-    await syncChampignonsMember();
     var rows=(await fetchAllChampignonsMembers()).filter(function(m){
       var em=clean(m&&m.email||'').toLowerCase(),
           nm=normIdentityName((clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||''));
