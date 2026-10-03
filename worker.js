@@ -145,8 +145,8 @@ async function handleMembers(request,env){
   if(action==='shared_woods')return handleShareBody(body,env,self,'inbox');
   const rows=await env.DB.prepare(`SELECT id,first_name AS firstName,last_name AS lastName
     FROM mushroom_members
-    WHERE active=1 AND id<>?
-    ORDER BY last_seen DESC,last_name COLLATE NOCASE,first_name COLLATE NOCASE
+    WHERE id<>?
+    ORDER BY last_name COLLATE NOCASE,first_name COLLATE NOCASE
     LIMIT 300`).bind(self.id).all();
   return json({ok:true,members:rows.results||[]});
 }
@@ -178,7 +178,7 @@ async function handleShareBody(body,env,self,forcedAction){
   if(action==='send'){
     const recipientId=Number(body.recipientId),wood=sanitizeSharedWood(body.wood);
     if(!Number.isFinite(recipientId)||recipientId<=0||!wood)return json({ok:false,error:'DESTINATAIRE_OU_BOIS_INVALIDE'},400);
-    const recipient=await env.DB.prepare('SELECT id,first_name AS firstName,last_name AS lastName FROM mushroom_members WHERE id=? AND active=1 LIMIT 1').bind(recipientId).first();
+    const recipient=await env.DB.prepare('SELECT id,first_name AS firstName,last_name AS lastName FROM mushroom_members WHERE id=? LIMIT 1').bind(recipientId).first();
     if(!recipient)return json({ok:false,error:'DESTINATAIRE_INTROUVABLE'},404);
     if(Number(recipient.id)===Number(self.id))return json({ok:false,error:'ENVOI_A_SOI_MEME_INTERDIT'},400);
     const senderName=(cleanText(self.firstName,80)+' '+cleanText(self.lastName,80)).trim();
