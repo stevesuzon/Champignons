@@ -93,6 +93,119 @@ async function recentFoundReports(url,env){
   const seen=new Set(),out=[];for(const row of rows.results||[]){if(Number.isFinite(lat)&&Number.isFinite(lon)&&Number.isFinite(Number(row.latitude))&&Number.isFinite(Number(row.longitude))){if(distanceKm(lat,lon,Number(row.latitude),Number(row.longitude))>radius)continue}const key=String(row.reporterName||'').toLowerCase()+'|'+String(row.species||'').toLowerCase();if(seen.has(key))continue;seen.add(key);out.push({reporterName:row.reporterName,species:row.species,reportDay:row.reportDay,reportedAt:row.reportedAt});if(out.length>=12)break}return json({ok:true,found:out});
 }
 
+
+function cleanEmail(value){return cleanText(value,190).toLowerCase()}
+function validEmail(value){return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(cleanEmail(value))}
+async function ensureMemberSchema(env){
+  if(!env.DB)throw new Error('DB_BINDING_MISSING');
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_members (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    email TEXT NOT NULL UNIQUE,
+    first_name TEXT NOT NULL,
+    last_name TEXT NOT NULL,
+    device_id TEXT,
+    created_at INTEGER NOT NULL,
+    last_seen INTEGER NOT NULL,
+    active INTEGER NOT NULL DEFAULT 1
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_shared_woods (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    recipient_member_id INTEGER NOT NULL,
+    sender_member_id INTEGER NOT NULL,
+    sender_name TEXT NOT NULL,
+    wood_id TEXT NOT NULL,
+    wood_json TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    UNIQUE(recipient_member_id,sender_member_id,wood_id)
+  )`).run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_members_seen ON mushroom_members(last_seen DESC)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_shared_recipient ON mushroom_shared_woods(recipient_member_id,created_at DESC)').run();
+}
+async function upsertMember(env,body){
+  await ensureMemberSchema(env);
+  const email=cleanEmail(body&&body.email),firstName=cleanText(body&&body.firstName,80),lastName=cleanText(body&&body.lastName,80),deviceId=cleanText(body&&body.deviceId,120),now=Date.now();
+  if(!validEmail(email)||firstName.length<2||lastName.length<2)return null;
+  await env.DB.prepare(`INSERT INTO mushroom_members(email,first_name,last_name,device_id,created_at,last_seen,active)
+    VALUES(?,?,?,?,?,?,1)
+    ON CONFLICT(email) DO UPDATE SET
+      first_name=excluded.first_name,
+      last_name=excluded.last_name,
+      device_id=CASE WHEN excluded.device_id<>'' THEN excluded.device_id ELSE mushroom_members.device_id END,
+      last_seen=excluded.last_seen,
+      active=1`).bind(email,firstName,lastName,deviceId,now,now).run();
+  const row=await env.DB.prepare('SELECT id,email,first_name AS firstName,last_name AS lastName,device_id AS deviceId FROM mushroom_members WHERE email=? LIMIT 1').bind(email).first();
+  return row||null;
+}
+async function handleMembers(request,env){
+  const body=await request.json().catch(()=>({})),action=cleanText(body.action,40)||'list';
+  const self=await upsertMember(env,body);
+  if(!self)return json({ok:false,error:'COMPTE_CHAMPIGNONS_INVALIDE'},400);
+  if(action==='register')return json({ok:true,member:{id:self.id,firstName:self.firstName,lastName:self.lastName}});
+  if(action==='share_wood')return handleShareBody(body,env,self,'send');
+  if(action==='shared_woods')return handleShareBody(body,env,self,'inbox');
+  const rows=await env.DB.prepare(`SELECT id,first_name AS firstName,last_name AS lastName
+    FROM mushroom_members
+    WHERE active=1 AND id<>?
+    ORDER BY last_seen DESC,last_name COLLATE NOCASE,first_name COLLATE NOCASE
+    LIMIT 300`).bind(self.id).all();
+  return json({ok:true,members:rows.results||[]});
+}
+function sanitizeSharedWood(input){
+  const w=input&&typeof input==='object'?input:{},out={
+    id:cleanText(w.id,220)||('wood-'+Date.now()),
+    woodName:cleanText(w.woodName,140)||'Bois partagé',
+    city:cleanText(w.city,120),
+    latitude:Number(w.latitude),
+    longitude:Number(w.longitude),
+    species:cleanText(w.species,180),
+    habitat:cleanText(w.habitat,220),
+    season:cleanText(w.season,120),
+    isPrivate:w.isPrivate===true,
+    isHunting:w.isHunting===true,
+    privacyStatus:cleanText(w.privacyStatus,30),
+    photoUrl:cleanText(w.photoUrl,1200),
+    noPhoto:w.noPhoto===true,
+    address:cleanText(w.address,260),
+    note:cleanText(w.note,500),
+    createdAt:w.createdAt||null
+  };
+  if(!Number.isFinite(out.latitude)||!Number.isFinite(out.longitude))return null;
+  return out;
+}
+async function handleShareBody(body,env,self,forcedAction){
+  await ensureMemberSchema(env);
+  const action=forcedAction||cleanText(body.action,40);
+  if(action==='send'){
+    const recipientId=Number(body.recipientId),wood=sanitizeSharedWood(body.wood);
+    if(!Number.isFinite(recipientId)||recipientId<=0||!wood)return json({ok:false,error:'DESTINATAIRE_OU_BOIS_INVALIDE'},400);
+    const recipient=await env.DB.prepare('SELECT id,first_name AS firstName,last_name AS lastName FROM mushroom_members WHERE id=? AND active=1 LIMIT 1').bind(recipientId).first();
+    if(!recipient)return json({ok:false,error:'DESTINATAIRE_INTROUVABLE'},404);
+    if(Number(recipient.id)===Number(self.id))return json({ok:false,error:'ENVOI_A_SOI_MEME_INTERDIT'},400);
+    const senderName=(cleanText(self.firstName,80)+' '+cleanText(self.lastName,80)).trim();
+    await env.DB.prepare(`INSERT INTO mushroom_shared_woods(recipient_member_id,sender_member_id,sender_name,wood_id,wood_json,created_at)
+      VALUES(?,?,?,?,?,?)
+      ON CONFLICT(recipient_member_id,sender_member_id,wood_id) DO UPDATE SET
+        sender_name=excluded.sender_name,wood_json=excluded.wood_json,created_at=excluded.created_at`)
+      .bind(recipient.id,self.id,senderName,cleanText(wood.id,220),JSON.stringify(wood),Date.now()).run();
+    return json({ok:true,recipient:{id:recipient.id,firstName:recipient.firstName,lastName:recipient.lastName}});
+  }
+  if(action==='inbox'){
+    const rows=await env.DB.prepare(`SELECT id,sender_name AS senderName,wood_json AS woodJson,created_at AS sharedAt
+      FROM mushroom_shared_woods WHERE recipient_member_id=? ORDER BY created_at DESC LIMIT 120`).bind(self.id).all();
+    const woods=(rows.results||[]).map(r=>{
+      let wood=null;try{wood=JSON.parse(r.woodJson||'null')}catch(_){}
+      return wood?{shareId:r.id,senderName:r.senderName,sharedAt:r.sharedAt,wood}:null
+    }).filter(Boolean);
+    return json({ok:true,woods});
+  }
+  return json({ok:false,error:'ACTION_PARTAGE_INVALIDE'},400);
+}
+async function handleShare(request,env){
+  const body=await request.json().catch(()=>({})),self=await upsertMember(env,body);
+  if(!self)return json({ok:false,error:'COMPTE_CHAMPIGNONS_INVALIDE'},400);
+  return handleShareBody(body,env,self,cleanText(body.action,40));
+}
+
 function distanceKm(a,b,c,d){const R=6371,p1=a*Math.PI/180,p2=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
 
 function csvNumber(v){const n=Number(String(v==null?'':v).replace(',','.'));return Number.isFinite(n)?n:null}
@@ -186,6 +299,8 @@ export default {
   async fetch(request,env){
     const url=new URL(request.url);
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:JSON_HEADERS});
+    if(url.pathname==='/api/mushrooms/members'&&request.method==='POST'){try{return await handleMembers(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/mushrooms/share'&&request.method==='POST'){try{return await handleShare(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits/report'&&request.method==='POST'){try{return await saveVisitReport(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits'&&request.method==='GET'){try{return await listVisitReports(url,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits/recent-found'&&request.method==='GET'){try{return await recentFoundReports(url,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
