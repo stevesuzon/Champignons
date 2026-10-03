@@ -649,43 +649,86 @@ function shareRecipientPayload(m){
     recipientDeviceId:clean(m.deviceId||m.device_id||''),
     recipientFirstName:clean(m.firstName||m.first_name||''),
     recipientLastName:clean(m.lastName||m.last_name||''),
-    recipientName:(clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||'')
+    recipientName:(clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||''),
+    recipientSource:clean(m._memberSource||'')
   }
 }
 async function internalShareRequest(kind,payload){
-  var attempts=kind==='send'?[
+  var legacyFirst=kind==='send'&&payload&&payload.recipientSource==='legacy';
+  var workerSend=[
     {base:mushroomAiBase(),path:'/api/mushrooms/share',action:'send'},
-    {base:mushroomAiBase(),path:'/api/mushrooms/members',action:'share_wood'},
-    {base:API_BASE,path:'/api/mushrooms/share',action:'send'}
-  ]:[
-    {base:mushroomAiBase(),path:'/api/mushrooms/share',action:'inbox'},
-    {base:mushroomAiBase(),path:'/api/mushrooms/members',action:'shared_woods'},
-    {base:API_BASE,path:'/api/mushrooms/share',action:'inbox'}
+    {base:mushroomAiBase(),path:'/api/mushrooms/members',action:'share_wood'}
+  ],legacySend=[
+    {base:API_BASE,path:'/api/mushrooms/share',action:'send'},
+    {base:API_BASE,path:'/api/mushrooms/members',action:'share_wood'}
   ];
+  var attempts=kind==='send'
+    ?(legacyFirst?legacySend.concat(workerSend):workerSend.concat(legacySend))
+    :[
+      {base:mushroomAiBase(),path:'/api/mushrooms/share',action:'inbox'},
+      {base:mushroomAiBase(),path:'/api/mushrooms/members',action:'shared_woods'},
+      {base:API_BASE,path:'/api/mushrooms/share',action:'inbox'},
+      {base:API_BASE,path:'/api/mushrooms/members',action:'shared_woods'}
+    ];
   var last=null;
   for(var i=0;i<attempts.length;i++){
     try{
-      var a=attempts[i],body=accessPayload(Object.assign({},payload||{},{action:a.action})),r=await fetch((a.base||mushroomAiBase())+a.path,{method:'POST',headers:authHeaders(),body:JSON.stringify(body),cache:'no-store'}),j=await r.json().catch(function(){return{}});
+      var a=attempts[i],body=accessPayload(Object.assign({},payload||{},{action:a.action})),
+          r=await fetch(a.base+a.path,{method:'POST',headers:authHeaders(),body:JSON.stringify(body),cache:'no-store'}),
+          j=await r.json().catch(function(){return{}});
       last={response:r,data:j};
       if(r.ok&&j&&j.ok)return j
     }catch(_){}
   }
   throw new Error(last&&last.data&&(last.data.message||last.data.error)||'PARTAGE_INTERNE_INDISPONIBLE')
 }
+async function fetchAllChampignonsMembers(){
+  var body=JSON.stringify(accessPayload({action:'list'}));
+  var sources=[
+    {base:mushroomAiBase(),source:'worker'},
+    {base:API_BASE,source:'legacy'}
+  ],all=[];
+  for(var i=0;i<sources.length;i++){
+    try{
+      var src=sources[i],r=await fetch(src.base+'/api/mushrooms/members',{
+        method:'POST',headers:authHeaders(),body:body,cache:'no-store'
+      }),j=await r.json().catch(function(){return{}});
+      if(r.ok&&j&&j.ok&&Array.isArray(j.members)){
+        j.members.forEach(function(m){
+          if(!m||typeof m!=='object')return;
+          all.push(Object.assign({},m,{_memberSource:src.source}))
+        })
+      }
+    }catch(_){}
+  }
+  var seen={},out=[];
+  all.forEach(function(m){
+    var em=clean(m.email||'').toLowerCase(),
+        dev=clean(m.deviceId||m.device_id||''),
+        name=normIdentityName((clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||'')),
+        id=clean(m.id||m.memberId||m.userId||m.user_id||''),
+        key=em?'e:'+em:dev?'d:'+dev:name?'n:'+name:(m._memberSource+':'+id);
+    if(!key||seen[key])return;
+    seen[key]=1;out.push(m)
+  });
+  return out
+}
 async function loadShareMembers(){
   var list=$('shareMemberList');if(list)list.innerHTML='';
   status('shareMemberStatus','Chargement des personnes inscrites…');
-  var self=identity()||{},selfEmail=clean(self.email||'').toLowerCase();
+  var self=identity()||{},selfEmail=clean(self.email||'').toLowerCase(),selfName=normIdentityName((clean(self.firstName)+' '+clean(self.lastName)).trim());
   try{
-    var r=await fetch(mushroomAiBase()+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),j=await r.json().catch(function(){return{}});
-    if(!r.ok||!j||!j.ok||!Array.isArray(j.members))throw new Error('LISTE_INDISPONIBLE');
-    var rows=j.members.filter(function(m){
-      var em=clean(m&&m.email||'').toLowerCase();
-      return !selfEmail||!em||em!==selfEmail
+    await syncChampignonsMember();
+    var rows=(await fetchAllChampignonsMembers()).filter(function(m){
+      var em=clean(m&&m.email||'').toLowerCase(),
+          nm=normIdentityName((clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||''));
+      if(selfEmail&&em&&em===selfEmail)return false;
+      if(!em&&selfName&&nm===selfName)return false;
+      return true
     });
     state.shareMembers=rows;
-    if(!rows.length){status('shareMemberStatus','Aucune autre personne inscrite à Champignons pour le moment.','bad');return}
-    status('shareMemberStatus','Choisissez la personne à qui envoyer ce bois.','ok');
+    if(!rows.length){status('shareMemberStatus','Aucune autre personne inscrite à Champignons trouvée pour le moment.','bad');return}
+    status('shareMemberStatus',rows.length+' personne'+(rows.length>1?'s':'')+' disponible'+(rows.length>1?'s':'')+' pour recevoir ce bois.','ok');
     if(list)list.innerHTML=rows.map(function(m,i){
       var name=(clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name)||'Membre Champignons';
       return '<button type="button" class="shareMemberBtn" data-member-index="'+i+'"><span class="shareMemberAvatar">🍄</span><span><b>'+esc(name)+'</b><small>Inscrit à Champignons</small></span><strong>ENVOYER ›</strong></button>'
@@ -1158,7 +1201,7 @@ function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLa
 async function loadExactEntryBackground(){
   var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
   try{
-    var r=await fetch('assets/entry-bg.b64?v=56',{cache:'force-cache'});
+    var r=await fetch('assets/entry-bg.b64?v=57',{cache:'force-cache'});
     if(!r.ok)throw new Error('image');
     var b64=(await r.text()).replace(/\s+/g,'');
     el.style.backgroundImage='url("data:image/webp;base64,'+b64+'")';
@@ -1362,24 +1405,27 @@ async function refreshAccountPanel(){fillAccountFields();var x=identity()||{},ca
 async function loadMembers(){
   var list=$('membersList');if(list)list.innerHTML='';
   status('membersStatus','Chargement des personnes inscrites…');
-  var x=identity()||{},selfName=(clean(x.firstName)+' '+clean(x.lastName)).trim();
+  var x=identity()||{},selfName=(clean(x.firstName)+' '+clean(x.lastName)).trim(),
+      selfEmail=clean(x.email||'').toLowerCase(),selfNorm=normIdentityName(selfName);
   try{
     await syncChampignonsMember();
-    var r=await fetch(mushroomAiBase()+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),
-        j=await r.json().catch(function(){return {}});
-    if(r.ok&&j&&j.ok&&Array.isArray(j.members)){
-      var rows=j.members||[];
-      var html='';
-      if(selfName) html+='<div class="memberRow memberSelf"><div class="memberAvatar">🍄</div><div><b>'+esc(selfName)+' <em>(Vous)</em></b><small>Compte Champignons sur ce téléphone</small></div></div>';
-      html+=rows.map(function(m){
-        var name=(clean(m.firstName)+' '+clean(m.lastName)).trim()||clean(m.name)||'Membre Champignons';
-        return '<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(name)+'</b><small>Inscrit à Champignons</small></div></div>'
-      }).join('');
-      if(list)list.innerHTML=html||'<div class="empty">Aucune personne inscrite.</div>';
-      var total=rows.length+(selfName?1:0);
-      status('membersStatus',total+' personne'+(total>1?'s':'')+' inscrite'+(total>1?'s':'')+'.','ok');
-      return
-    }
+    var rows=(await fetchAllChampignonsMembers()).filter(function(m){
+      var em=clean(m&&m.email||'').toLowerCase(),
+          nm=normIdentityName((clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name||''));
+      if(selfEmail&&em&&em===selfEmail)return false;
+      if(!em&&selfNorm&&nm===selfNorm)return false;
+      return true
+    });
+    var html='';
+    if(selfName)html+='<div class="memberRow memberSelf"><div class="memberAvatar">🍄</div><div><b>'+esc(selfName)+' <em>(Vous)</em></b><small>Compte Champignons sur ce téléphone</small></div></div>';
+    html+=rows.map(function(m){
+      var name=(clean(m.firstName||m.first_name)+' '+clean(m.lastName||m.last_name)).trim()||clean(m.name)||'Membre Champignons';
+      return '<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(name)+'</b><small>Inscrit à Champignons</small></div></div>'
+    }).join('');
+    if(list)list.innerHTML=html||'<div class="empty">Aucune personne inscrite.</div>';
+    var total=rows.length+(selfName?1:0);
+    status('membersStatus',total+' personne'+(total>1?'s':'')+' inscrite'+(total>1?'s':'')+'.','ok');
+    return
   }catch(_){}
   if(list&&selfName)list.innerHTML='<div class="memberRow memberSelf"><div class="memberAvatar">🍄</div><div><b>'+esc(selfName)+' <em>(Vous)</em></b><small>Compte Champignons sur ce téléphone</small></div></div>';
   status('membersStatus',selfName?'1 personne inscrite (vous).':'Impossible de charger la liste pour le moment.',selfName?'ok':'bad')
