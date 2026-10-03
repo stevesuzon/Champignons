@@ -140,6 +140,16 @@ function identityPlatform(){var ua=navigator.userAgent||'';if(/iphone|ipad|ipod/
 function subscription(){try{var standalone=clean(localStorage.getItem(MAIN_CODE_KEY)||'');if(standalone)return {code:standalone};return JSON.parse(localStorage.getItem('carplay_shared_subscription')||'null')||{}}catch(_){return {}}}
 function accessPayload(extra){var x=identity()||{},s=subscription()||{},trialUntil=cachedTrialUntil();return Object.assign({deviceId:deviceId(),subscriptionCode:clean(s.code||''),email:clean(x.email||s.email||localStorage.getItem('carplay_recovery_email')||''),firstName:clean(x.firstName||s.firstName||''),lastName:clean(x.lastName||s.lastName||''),appFreeUntil:trialUntil||null,trialUntil:trialUntil||null},extra||{})}
 function authHeaders(){return {'content-type':'application/json','x-mushroom-access':state.accessToken||''}}
+async function syncChampignonsMember(){
+  var x=identity()||{};if(!identityComplete(x))return false;
+  try{
+    var r=await fetch(mushroomAiBase()+'/api/mushrooms/members',{
+      method:'POST',headers:{'content-type':'application/json'},
+      body:JSON.stringify(accessPayload({action:'register'})),cache:'no-store'
+    }),j=await r.json().catch(function(){return{}});
+    return !!(r.ok&&j&&j.ok)
+  }catch(_){return false}
+}
 async function ensureMainTrialAccount(){var x=identity()||{},em=clean(x.email||localStorage.getItem('carplay_recovery_email')||'').toLowerCase(),fn=clean(x.firstName||''),ln=clean(x.lastName||'');if(!em||fn.length<2||ln.length<2)return null;try{var r=await fetch(API_BASE+'/api/contest/trial-identity',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:em,firstName:fn,lastName:ln}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.expiresAt){var ms=Date.parse(j.expiresAt);if(Number.isFinite(ms)&&ms>Date.now()){try{localStorage.setItem('carplay_personal_trial_until_ms',String(ms))}catch(_){};return ms}}if(j&&j.error==='ABONNEMENT_EXISTANT_A_RECUPERER')return null}catch(_){}return null}
 
 function show(id){['homeView','addView','browseView','woodsListView'].forEach(function(x){var e=$(x);if(e)e.classList.toggle('hidden',x!==id)});var hero=$('homeHero');if(hero)hero.classList.toggle('hidden',id!=='homeView')}
@@ -644,18 +654,18 @@ function shareRecipientPayload(m){
 }
 async function internalShareRequest(kind,payload){
   var attempts=kind==='send'?[
-    {path:'/api/mushrooms/share',action:'send'},
-    {path:'/api/mushrooms/members',action:'share_wood'},
-    {path:'/api/mushrooms/manage',action:'share'}
+    {base:mushroomAiBase(),path:'/api/mushrooms/share',action:'send'},
+    {base:mushroomAiBase(),path:'/api/mushrooms/members',action:'share_wood'},
+    {base:API_BASE,path:'/api/mushrooms/share',action:'send'}
   ]:[
-    {path:'/api/mushrooms/share',action:'inbox'},
-    {path:'/api/mushrooms/members',action:'shared_woods'},
-    {path:'/api/mushrooms/manage',action:'shared_with_me'}
+    {base:mushroomAiBase(),path:'/api/mushrooms/share',action:'inbox'},
+    {base:mushroomAiBase(),path:'/api/mushrooms/members',action:'shared_woods'},
+    {base:API_BASE,path:'/api/mushrooms/share',action:'inbox'}
   ];
   var last=null;
   for(var i=0;i<attempts.length;i++){
     try{
-      var a=attempts[i],body=accessPayload(Object.assign({},payload||{},{action:a.action})),r=await fetch(API_BASE+a.path,{method:'POST',headers:authHeaders(),body:JSON.stringify(body),cache:'no-store'}),j=await r.json().catch(function(){return{}});
+      var a=attempts[i],body=accessPayload(Object.assign({},payload||{},{action:a.action})),r=await fetch((a.base||mushroomAiBase())+a.path,{method:'POST',headers:authHeaders(),body:JSON.stringify(body),cache:'no-store'}),j=await r.json().catch(function(){return{}});
       last={response:r,data:j};
       if(r.ok&&j&&j.ok)return j
     }catch(_){}
@@ -667,7 +677,7 @@ async function loadShareMembers(){
   status('shareMemberStatus','Chargement des personnes inscrites…');
   var self=identity()||{},selfEmail=clean(self.email||'').toLowerCase();
   try{
-    var r=await fetch(API_BASE+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),j=await r.json().catch(function(){return{}});
+    var r=await fetch(mushroomAiBase()+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),j=await r.json().catch(function(){return{}});
     if(!r.ok||!j||!j.ok||!Array.isArray(j.members))throw new Error('LISTE_INDISPONIBLE');
     var rows=j.members.filter(function(m){
       var em=clean(m&&m.email||'').toLowerCase();
@@ -1148,7 +1158,7 @@ function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLa
 async function loadExactEntryBackground(){
   var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
   try{
-    var r=await fetch('assets/entry-bg.b64?v=54',{cache:'force-cache'});
+    var r=await fetch('assets/entry-bg.b64?v=55',{cache:'force-cache'});
     if(!r.ok)throw new Error('image');
     var b64=(await r.text()).replace(/\s+/g,'');
     el.style.backgroundImage='url("data:image/webp;base64,'+b64+'")';
@@ -1156,7 +1166,7 @@ async function loadExactEntryBackground(){
   }catch(e){el.classList.add('entryBgFallback')}
 }
 function setEntryGate(open){var g=$('firstEntryGate');if(!g)return;g.classList.toggle('hidden',!open);g.setAttribute('aria-hidden',open?'false':'true')}
-async function finishEntry(identityData){if(identityData)saveIdentityLocal(identityData);try{localStorage.setItem(ONBOARDING_KEY,'1');if(temporaryFreeActive())localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}setEntryGate(false);var ok=await checkAccess();refreshCarButton();refreshSavedPositionPanel();if(temporaryFreeActive()||ok){setUnlockGate(false);show('homeView')}else showUnlockGate()}
+async function finishEntry(identityData){if(identityData)saveIdentityLocal(identityData);try{localStorage.setItem(ONBOARDING_KEY,'1');if(temporaryFreeActive())localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}await syncChampignonsMember();setEntryGate(false);var ok=await checkAccess();refreshCarButton();refreshSavedPositionPanel();if(temporaryFreeActive()||ok){setUnlockGate(false);show('homeView')}else showUnlockGate()}
 var entryWatchTimer=null;
 function watchEntryVerification(){if(entryWatchTimer)clearInterval(entryWatchTimer);var left=75;entryWatchTimer=setInterval(async function(){left--;var x=identity()||{};try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(identityStatusPayload(x)),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.verified){var remote;try{remote=verifiedIdentityOrEntered(j,x)}catch(_){clearInterval(entryWatchTimer);entryWatchTimer=null;status('entryStatus','❌ Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.','bad');return}clearInterval(entryWatchTimer);entryWatchTimer=null;status('entryStatus','✅ Compte reconnu. Ouverture de Champignons…','ok');setTimeout(function(){finishEntry(remote)},500);return}}catch(_){}if(left<=0){clearInterval(entryWatchTimer);entryWatchTimer=null}},4000)}
 async function submitFirstEntry(){
@@ -1349,7 +1359,7 @@ function renderEdibleCatalog(filter){
 function closeAllSettingsPanels(){['accountPanel','positionPanel','gpsPanel','membersPanel','ediblePanel'].forEach(function(id){var e=$(id);if(e)e.classList.add('hidden')});var m=document.querySelector('.settingsMenu');if(m)m.classList.remove('hidden')}
 function openSettingsPanel(id){closeAllSettingsPanels();var m=document.querySelector('.settingsMenu');if(m)m.classList.add('hidden');var e=$(id);if(e)e.classList.remove('hidden');if(id==='accountPanel')refreshAccountPanel();if(id==='positionPanel')refreshSavedPositionPanel();if(id==='gpsPanel')refreshGpsPref();if(id==='membersPanel')loadMembers();if(id==='ediblePanel')renderEdibleCatalog($('edibleSearch')&&$('edibleSearch').value||'')}
 async function refreshAccountPanel(){fillAccountFields();var x=identity()||{},card=$('accountConfirmedCard'),edit=$('accountEditArea');if(!identityComplete(x)){if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Renseignez vos coordonnées Couteau Suisse.');return}var verified=false;try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:clean(x.email).toLowerCase()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});verified=!!(r.ok&&j&&j.verified);if(verified&&j.identity)x=saveIdentityLocal(j.identity)}catch(_){}if(verified){if(card)card.classList.remove('hidden');if(edit)edit.classList.add('hidden');if($('confirmedAccountName'))$('confirmedAccountName').textContent=(clean(x.firstName)+' '+clean(x.lastName)).trim();if($('confirmedAccountEmail'))$('confirmedAccountEmail').textContent=clean(x.email);status('accountLinkStatus','✅ Compte confirmé et lié.','ok')}else{if(card)card.classList.add('hidden');if(edit)edit.classList.remove('hidden');status('accountLinkStatus','Coordonnées enregistrées. Confirmation Couteau Suisse en attente.')}} 
-async function loadMembers(){var list=$('membersList');if(list)list.innerHTML='';status('membersStatus','Chargement des personnes inscrites…');var x=identity()||{};try{var r=await fetch(API_BASE+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.ok&&Array.isArray(j.members)){var rows=j.members;if(list)list.innerHTML=rows.length?rows.map(function(m){var name=(clean(m.firstName)+' '+clean(m.lastName)).trim()||clean(m.name)||'Membre Champignons';return '<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(name)+'</b><small>Inscrit à Champignons</small></div></div>'}).join(''):'<div class="empty">Aucune autre personne inscrite.</div>';status('membersStatus',rows.length+' personne'+(rows.length>1?'s':'')+' inscrite'+(rows.length>1?'s':'')+'.','ok');return}}catch(_){}var selfName=(clean(x.firstName)+' '+clean(x.lastName)).trim();if(list&&selfName)list.innerHTML='<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(selfName)+'</b><small>Compte Champignons confirmé sur ce téléphone</small></div></div>';status('membersStatus','La liste complète des inscrits sera affichée dès que le serveur Champignons la fournit. Votre compte confirmé est affiché ci-dessous.',selfName?'ok':'bad')}
+async function loadMembers(){var list=$('membersList');if(list)list.innerHTML='';status('membersStatus','Chargement des personnes inscrites…');var x=identity()||{};try{var r=await fetch(mushroomAiBase()+'/api/mushrooms/members',{method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.ok&&Array.isArray(j.members)){var rows=j.members;if(list)list.innerHTML=rows.length?rows.map(function(m){var name=(clean(m.firstName)+' '+clean(m.lastName)).trim()||clean(m.name)||'Membre Champignons';return '<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(name)+'</b><small>Inscrit à Champignons</small></div></div>'}).join(''):'<div class="empty">Aucune autre personne inscrite.</div>';status('membersStatus',rows.length+' personne'+(rows.length>1?'s':'')+' inscrite'+(rows.length>1?'s':'')+'.','ok');return}}catch(_){}var selfName=(clean(x.firstName)+' '+clean(x.lastName)).trim();if(list&&selfName)list.innerHTML='<div class="memberRow"><div class="memberAvatar">🍄</div><div><b>'+esc(selfName)+'</b><small>Compte Champignons confirmé sur ce téléphone</small></div></div>';status('membersStatus','La liste complète des inscrits sera affichée dès que le serveur Champignons la fournit. Votre compte confirmé est affiché ci-dessous.',selfName?'ok':'bad')}
 function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref();refreshSavedPositionPanel();refreshNotificationSettings()}
 function closeMushSettings(){var x=$('mushSettings');x.classList.add('hidden');x.setAttribute('aria-hidden','true')}
 if($('mushSettingsBtn'))$('mushSettingsBtn').onclick=openMushSettings;
@@ -1386,5 +1396,5 @@ Array.from(document.querySelectorAll('[data-gps]')).forEach(function(b){b.onclic
 function refreshInstallButton(){var b=$('installAppBtn');if(!b)return;b.textContent=isStandaloneApp()?'INSTALLÉE':'INSTALLER'}
 window.addEventListener('appinstalled',refreshInstallButton);
 window.addEventListener('load',function(){setTimeout(checkMushroomOpportunity,2200)});
-window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){if(identityComplete())refreshAccountLinkStatus(true);refreshNotificationSettings()}});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');importSharedWoodFromUrl();handleChampignonsConfirmationReturn().then(function(done){if(!done)startEntryGate()}).catch(function(){startEntryGate()});
+window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){if(identityComplete())refreshAccountLinkStatus(true);refreshNotificationSettings()}});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');if(identityComplete())syncChampignonsMember();importSharedWoodFromUrl();handleChampignonsConfirmationReturn().then(function(done){if(!done)startEntryGate()}).catch(function(){startEntryGate()});
 })();
