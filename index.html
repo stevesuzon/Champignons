@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=69">
+<link rel="manifest" href="manifest.webmanifest?v=70">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=69">
+<link rel="stylesheet" href="champignons.css?v=70">
 
 </head><body>
 <header class="mushTop standaloneTop chatHeaderTop">
@@ -37,6 +37,7 @@
         <textarea id="chatInput" maxlength="500" rows="1" placeholder="Écrire un message…"></textarea>
         <button id="chatSendBtn" type="button" class="btn chatSendBtn">ENVOYER</button>
       </div>
+      <button id="chatWoodSendBtn" type="button" class="btn chatWoodSendBtn hidden">🌲 ENVOYER UN BOIS À CETTE PERSONNE</button>
       <div id="chatStatus" class="status chatStatusCompact"></div>
     </div>
   </div>
@@ -209,10 +210,10 @@
     <div id="chatInviteMessage" class="chatInviteMessage"></div>
     <p class="chatInviteHelp">Répondez directement : la réponse sera envoyée automatiquement dans le chat à la personne qui vous a écrit.</p>
     <div class="chatInviteActions">
-      <button id="chatInviteYesBtn" type="button" class="btn chatInviteYes">✅ OUI, JE VIENS<br><span>DANS QUEL BOIS TU VEUX QU’ON AILLE ?</span></button>
-      <button id="chatInviteNoBtn" type="button" class="btn chatInviteNo">❌ NON</button>
-      <button id="chatInviteWoodBtn" type="button" class="btn chatInviteWood hidden">🌲 ENVOYER UN BOIS</button>
+      <button id="chatInviteYesBtn" type="button" class="btn chatInviteYes">✅ OUI, JE VIENS</button>
+      <button id="chatInviteNoBtn" type="button" class="btn chatInviteNo">❌ NON, JE PEUX PAS</button>
       <button id="chatInviteReplyBtn" type="button" class="btn secondary chatInviteReply">💬 RÉPONDRE</button>
+      <button id="chatInviteWoodBtn" type="button" class="btn chatInviteWood hidden">🌲 CHOISIR UN AUTRE BOIS</button>
     </div>
   </div>
 </div>
@@ -233,11 +234,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=69"></script>
-<script src="champignons.js?v=69" defer></script>
+<script src="config.js?v=70"></script>
+<script src="champignons.js?v=70" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=69',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=70',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
