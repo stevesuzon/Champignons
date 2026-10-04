@@ -1385,7 +1385,23 @@ function fillAccountFields(){var x=identity()||{};if($('accountLastName'))$('acc
 async function refreshAccountLinkStatus(silent){var x=identity()||{};if(!identityComplete(x)){if(!silent)status('accountLinkStatus','Renseignez le nom, le prénom et l’adresse e-mail utilisés dans Couteau Suisse.');return false}try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(identityStatusPayload(x)),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.verified){var remote=responseIdentity(j);if(!remote||!sameCouteauIdentity(x,remote)){if(!silent)status('accountLinkStatus','❌ Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.','bad');return false}saveIdentityLocal(remote);refreshAdminPhotoChoice();status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');if(accountWatchTimer){clearInterval(accountWatchTimer);accountWatchTimer=null}await checkAccess();return true}if(!silent)status('accountLinkStatus','📧 Coordonnées enregistrées. L’adresse e-mail doit encore être confirmée pour lier le compte.');return false}catch(_){if(!silent)status('accountLinkStatus','Coordonnées enregistrées sur ce téléphone. Vérification Couteau Suisse indisponible pour le moment.','bad');return false}}
 function startAccountWatch(){if(accountWatchTimer)clearInterval(accountWatchTimer);var left=75;accountWatchTimer=setInterval(async function(){left--;var ok=await refreshAccountLinkStatus(true);if(ok||left<=0){clearInterval(accountWatchTimer);accountWatchTimer=null}},4000)}
 async function saveCouteauAccount(){var last=clean($('accountLastName').value),first=clean($('accountFirstName').value),email=clean($('accountEmail').value).toLowerCase();if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('accountLinkStatus','❌ Nom, prénom et adresse e-mail valide sont obligatoires.','bad');return}var x=saveIdentityLocal({lastName:last,firstName:first,email:email}),b=$('saveCouteauAccountBtn');b.disabled=true;status('accountLinkStatus','Enregistrement et liaison avec Couteau Suisse…');try{var sr=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),email:email}),cache:'no-store'}),sj=await sr.json().catch(function(){return {}});if(sr.ok&&sj&&sj.verified){var known=responseIdentity(sj);if(!known||!sameCouteauIdentity({firstName:first,lastName:last,email:email},known))throw identityMismatchError();saveIdentityLocal(known);status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}var r=await fetch(API_BASE+'/api/app-identity/start',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId(),platform:'champignons-'+identityPlatform(),firstName:first,lastName:last,email:email,sourceApp:'champignons',appName:'Champignons',emailBrand:'Champignons',emailSubject:'Champignons — confirmez votre adresse e-mail',redirectUrl:champignonsConfirmationUrl(),returnUrl:champignonsConfirmationUrl(),callbackUrl:champignonsConfirmationUrl()}),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(!r.ok||!j.ok)throw j;if(j.alreadyVerified){var already=responseIdentity(j);if(!already||!sameCouteauIdentity({firstName:first,lastName:last,email:email},already))throw identityMismatchError();saveIdentityLocal(already);status('accountLinkStatus','✅ Compte lié à Couteau Suisse.','ok');await checkAccess();return}status('accountLinkStatus','📧 Un e-mail Champignons a été envoyé. Touchez le lien de confirmation : il vous renverra directement vers Champignons.','ok');startAccountWatch()}catch(e){var c=e&&e.error||'',m=c==='IDENTITE_DIFFERENTE'?'Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.':c==='EMAIL_TROP_RAPIDE'?'Un e-mail a déjà été envoyé récemment. Vérifiez votre boîte mail.':c==='QUOTA_EMAIL_JOURNALIER'?'Envoi d’e-mail momentanément indisponible. Réessayez plus tard.':'Impossible de lier le compte pour le moment.';status('accountLinkStatus','❌ '+m,'bad')}finally{b.disabled=false}}
-function fillEntryFields(){var x=identity()||{};if($('entryLastName'))$('entryLastName').value=clean(x.lastName);if($('entryFirstName'))$('entryFirstName').value=clean(x.firstName);if($('entryEmail'))$('entryEmail').value=clean(x.email||localStorage.getItem('carplay_recovery_email')||'')}
+function entryFormReady(){
+  var last=clean($('entryLastName')&&$('entryLastName').value),first=clean($('entryFirstName')&&$('entryFirstName').value),email=clean($('entryEmail')&&$('entryEmail').value).toLowerCase();
+  return last.length>=2&&first.length>=2&&/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)
+}
+function refreshEntryButton(){
+  var b=$('entryContinueBtn');if(!b)return;
+  var ready=entryFormReady();
+  b.disabled=!ready;
+  b.classList.toggle('ready',ready)
+}
+function fillEntryFields(){
+  var x=identity()||{};
+  if($('entryLastName'))$('entryLastName').value=clean(x.lastName);
+  if($('entryFirstName'))$('entryFirstName').value=clean(x.firstName);
+  if($('entryEmail'))$('entryEmail').value=clean(x.email||localStorage.getItem('carplay_recovery_email')||'');
+  refreshEntryButton()
+}
 async function loadExactEntryBackground(){
   var el=$('exactEntryBackground');if(!el||el.dataset.loaded==='1')return;
   try{
@@ -1402,21 +1418,12 @@ var entryWatchTimer=null;
 function watchEntryVerification(){if(entryWatchTimer)clearInterval(entryWatchTimer);var left=75;entryWatchTimer=setInterval(async function(){left--;var x=identity()||{};try{var r=await fetch(API_BASE+'/api/app-identity/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify(identityStatusPayload(x)),cache:'no-store'}),j=await r.json().catch(function(){return {}});if(r.ok&&j&&j.verified){var remote;try{remote=verifiedIdentityOrEntered(j,x)}catch(_){clearInterval(entryWatchTimer);entryWatchTimer=null;status('entryStatus','❌ Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.','bad');return}clearInterval(entryWatchTimer);entryWatchTimer=null;status('entryStatus','✅ Compte reconnu. Ouverture de Champignons…','ok');setTimeout(function(){finishEntry(remote)},500);return}}catch(_){}if(left<=0){clearInterval(entryWatchTimer);entryWatchTimer=null}},4000)}
 async function submitFirstEntry(){
   var last=clean($('entryLastName').value),first=clean($('entryFirstName').value),email=clean($('entryEmail').value).toLowerCase(),b=$('entryContinueBtn');
-  if(last.length<2||first.length<2||!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)){status('entryStatus','❌ Remplissez le nom, le prénom et une adresse e-mail valide.','bad');return}
-  var entered={lastName:last,firstName:first,email:email},trusted=storedCouteauIdentity();
+  if(!entryFormReady()){refreshEntryButton();status('entryStatus','Remplissez le nom, le prénom et une adresse e-mail valide.','bad');return}
+  var entered={lastName:last,firstName:first,email:email};
   if($('entryNeedCouteau'))$('entryNeedCouteau').classList.add('hidden');
   b.disabled=true;
-  status('entryStatus','Vérification avec votre compte Couteau Suisse…');
+  status('entryStatus','Vérification du compte Couteau Suisse…');
   try{
-    // Pendant la période gratuite, un compte Couteau Suisse déjà enregistré sur ce téléphone
-    // est la référence. On ne l’écrase jamais avant la comparaison.
-    if(temporaryFreeActive()&&identityComplete(trusted)&&sameCouteauIdentity(entered,trusted)){
-      try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}
-      status('entryStatus','✅ Compte Couteau Suisse reconnu. Ouverture de Champignons…','ok');
-      await finishEntry(trusted);
-      return
-    }
-
     var sr=await fetch(API_BASE+'/api/app-identity/status',{
       method:'POST',
       headers:{'content-type':'application/json'},
@@ -1426,45 +1433,22 @@ async function submitFirstEntry(){
     if(sr.ok&&sj&&sj.verified){
       var known=verifiedIdentityOrEntered(sj,entered);
       try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(TEMP_FREE_UNTIL_MS))}catch(_){}
-      status('entryStatus','✅ Compte reconnu. Ouverture de Champignons…','ok');
+      status('entryStatus','✅ Compte Couteau Suisse reconnu. Ouverture de Champignons…','ok');
       await finishEntry(known);
       return
     }
-
-    // Deuxième contrôle : certains comptes Couteau Suisse existants sont reconnus par /start
-    // alors que /status ne les retrouve pas encore sur le nouvel identifiant Champignons.
-    var confirmUrl=champignonsConfirmationUrl();
-    var r=await fetch(API_BASE+'/api/app-identity/start',{
-      method:'POST',
-      headers:{'content-type':'application/json'},
-      body:JSON.stringify({
-        deviceId:deviceId(),platform:'champignons-'+identityPlatform(),
-        firstName:first,lastName:last,email:email,
-        sourceApp:'champignons',appName:'Champignons',
-        emailBrand:'Champignons',emailSubject:'Champignons — confirmez votre adresse e-mail',
-        redirectUrl:confirmUrl,returnUrl:confirmUrl,callbackUrl:confirmUrl
-      }),cache:'no-store'
-    }),j=await r.json().catch(function(){return {}});
-    if(r.ok&&j&&j.alreadyVerified){
-      var already=verifiedIdentityOrEntered(j,entered);
-      status('entryStatus','✅ Compte Couteau Suisse reconnu. Ouverture de Champignons…','ok');
-      await finishEntry(already);
-      return
+    if($('entryNeedCouteau'))$('entryNeedCouteau').classList.remove('hidden');
+    if(sj&&sj.error==='IDENTITE_DIFFERENTE'){
+      status('entryStatus','❌ Le nom, le prénom ou l’adresse e-mail ne correspondent pas au compte Couteau Suisse.','bad')
+    }else{
+      status('entryStatus','❌ Vous n’êtes pas inscrit à Couteau Suisse.','bad')
     }
-
-    if(temporaryFreeActive()){
-      if($('entryNeedCouteau'))$('entryNeedCouteau').classList.remove('hidden');
-      throw identityMismatchError()
-    }
-
-    if(!r.ok||!j.ok)throw j;
-    saveIdentityLocal(entered);
-    status('entryStatus','📧 Un e-mail de confirmation vient d’être envoyé. Touchez le lien dans le mail.','ok');
-    watchEntryVerification()
   }catch(e){
     if($('entryNeedCouteau'))$('entryNeedCouteau').classList.remove('hidden');
-    status('entryStatus','❌ Compte Couteau Suisse non reconnu. Vérifiez le nom, le prénom et l’adresse e-mail.','bad')
-  }finally{b.disabled=false}
+    status('entryStatus','❌ Impossible de vérifier Couteau Suisse pour le moment.','bad')
+  }finally{
+    refreshEntryButton()
+  }
 }
 async function handleChampignonsConfirmationReturn(){
   var qp;try{qp=new URLSearchParams(location.search)}catch(_){return false}
@@ -1638,6 +1622,7 @@ if($('edibleSearch'))$('edibleSearch').addEventListener('input',function(){rende
 Array.from(document.querySelectorAll('[data-close-panel]')).forEach(function(b){b.onclick=closeAllSettingsPanels});
 if($('saveCouteauAccountBtn'))$('saveCouteauAccountBtn').onclick=saveCouteauAccount;
 if($('entryContinueBtn'))$('entryContinueBtn').onclick=submitFirstEntry;
+['entryLastName','entryFirstName','entryEmail'].forEach(function(id){if($(id)){$(id).addEventListener('input',function(){if($('entryNeedCouteau'))$('entryNeedCouteau').classList.add('hidden');status('entryStatus','');refreshEntryButton()});$(id).addEventListener('keydown',function(e){if(e.key==='Enter'&&entryFormReady())submitFirstEntry()})}});
 if($('unlockSubmitBtn'))$('unlockSubmitBtn').onclick=submitUnlockCode;
 if($('requestCodeEmailBtn'))$('requestCodeEmailBtn').onclick=requestCodeByEmail;
 if($('unlockCodeInput')){$('unlockCodeInput').addEventListener('input',function(e){e.target.value=formatActivationCode(e.target.value)});$('unlockCodeInput').addEventListener('keydown',function(e){if(e.key==='Enter')submitUnlockCode()})}
