@@ -866,11 +866,21 @@ function showChatInvite(message){
   if(!message||state.chatInvite)return;
   state.chatInvite=message;
   var sender=clean(message.senderName||'Membre Champignons'),text=clean(message.message||''),info=chatProposalInfo(text);
-  var title=$('chatInviteTitle'),received=$('chatInviteReceived'),body=$('chatInviteMessage'),proposal=$('chatInviteProposal'),woodBtn=$('chatInviteWoodBtn');
+  var title=$('chatInviteTitle'),received=$('chatInviteReceived'),body=$('chatInviteMessage'),proposal=$('chatInviteProposal'),woodBtn=$('chatInviteWoodBtn'),
+      yesBtn=$('chatInviteYesBtn'),noBtn=$('chatInviteNoBtn'),replyBtn=$('chatInviteReplyBtn'),help=document.querySelector('#chatInviteOverlay .chatInviteHelp'),
+      isNo=/^non\b/i.test(text)&&/(peux pas|ne peux pas|pourrai pas|ne pourrai pas|pas venir)/i.test(text),
+      isYes=/^oui\b/i.test(text)&&/(je viens|viens aux champignons)/i.test(text),
+      woodProposal=/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(text)||/tu viens aux champignons\s*\?/i.test(text)&&/bois/i.test(text),
+      looksInvite=woodProposal||(/champignon|cueillette|bois|venir|viens|aller/i.test(text)&&!isNo&&!isYes);
   if(title){
-    var looksInvite=/champignon|cueillette|bois|venir|viens|aller/i.test(text);
-    title.textContent=looksInvite?sender+' vous demande si vous allez aux champignons':sender+' vous a envoyé un message'
+    if(isNo)title.textContent=sender+' ne peut pas venir';
+    else if(isYes)title.textContent=sender+' vient aux champignons';
+    else title.textContent=looksInvite?sender+' vous demande si vous allez aux champignons':sender+' vous a envoyé un message'
   }
+  if(yesBtn)yesBtn.classList.toggle('hidden',!looksInvite);
+  if(noBtn)noBtn.classList.toggle('hidden',!looksInvite);
+  if(replyBtn)replyBtn.classList.remove('hidden');
+  if(help)help.textContent=(isNo||isYes)?'Réponse reçue. Vous pouvez fermer ou répondre à la personne.':'Répondez directement : la réponse sera envoyée automatiquement dans le chat à la personne qui vous a écrit.';
   if(received)received.textContent='Message reçu '+chatInviteReceivedLabel(message.createdAt);
   if(body)body.textContent=text;
   if(proposal){
@@ -880,10 +890,7 @@ function showChatInvite(message){
     proposal.innerHTML=parts.join('');
     proposal.classList.toggle('hidden',!parts.length)
   }
-  if(woodBtn){
-    var woodProposal=/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(text)||/tu viens aux champignons\s*\?/i.test(text)&&/bois/i.test(text);
-    woodBtn.classList.toggle('hidden',!woodProposal)
-  }
+  if(woodBtn)woodBtn.classList.toggle('hidden',!woodProposal);
   var overlay=$('chatInviteOverlay');
   if(overlay){overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false')}
 }
@@ -909,7 +916,10 @@ async function answerChatInvite(yes,button){
   var buttons=document.querySelectorAll('#chatInviteOverlay button');Array.from(buttons).forEach(function(b){b.disabled=true});
   var ok=await sendChatMessage(chatInviteReplyText(yes,m),Number(m.senderId||0),button);
   Array.from(buttons).forEach(function(b){b.disabled=false});
-  if(ok)closeChatInvite(true)
+  if(ok){
+    closeChatInvite(true);
+    selectChatRecipient(0,'Tout le monde',false)
+  }
 }
 function replyChatInvite(){
   var m=state.chatInvite;if(!m)return;
@@ -992,10 +1002,11 @@ function renderChatMessages(rows){
   box.innerHTML=rows.map(function(m){
     var mine=Number(m.senderId)===selfId,forMe=Number(m.recipientId||0)===selfId;
     var target=m.recipientName?'<div class="chatTarget">🔔 Pour '+esc(m.recipientName)+'</div>':'';
-    var woodProposal=forMe&&(/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(clean(m.message||''))||/tu viens aux champignons\s*\?/i.test(clean(m.message||''))&&/bois/i.test(clean(m.message||'')));
+    var msgText=clean(m.message||''),woodProposal=forMe&&(/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(msgText)||/tu viens aux champignons\s*\?/i.test(msgText)&&/bois/i.test(msgText)),
+        answerOnly=forMe&&((/^non\b/i.test(msgText)&&/(peux pas|ne peux pas|pourrai pas|ne pourrai pas|pas venir)/i.test(msgText))||(/^oui\b/i.test(msgText)&&/(je viens|viens aux champignons)/i.test(msgText)));
     var actions=!mine?(woodProposal
       ?'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">✅ OUI, JE VIENS</button><button type="button" class="chatNoBtn" data-chat-sender="'+Number(m.senderId||0)+'">❌ NON, JE PEUX PAS</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">💬 RÉPONDRE</button><button type="button" class="chatWoodBtn" data-chat-wood-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'" data-chat-message-id="'+Number(m.id||0)+'">🌲 CHOISIR UN AUTRE BOIS</button></div>'
-      :'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">OUI 👍</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">RÉPONDRE</button></div>'):'';
+      :'<div class="chatActions"><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">'+(answerOnly?'💬 RÉPONDRE':'RÉPONDRE')+'</button></div>'):'';
     return '<div class="chatMessage'+(mine?' mine':'')+(forMe?' forMe':'')+'" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'"><div class="chatMessageHead"><b>'+esc(m.senderName||'Membre Champignons')+'</b><time>'+esc(chatTimeLabel(m.createdAt))+'</time></div>'+target+'<div class="chatMessageText">'+esc(m.message||'')+'</div>'+actions+'</div>'
   }).join('');
   Array.from(box.querySelectorAll('.chatMessage')).forEach(function(row){
