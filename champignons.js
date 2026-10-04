@@ -841,10 +841,15 @@ function chatProposalInfo(message){
       day=day.charAt(0).toUpperCase()+day.slice(1)
     }
   }
-  var tm=raw.match(/\b(?:à\s+|a\s+|vers\s+)?([01]?\d|2[0-3])\s*(?:h|:)\s*([0-5]\d)?\b/i),time='';
-  if(tm){
-    var hh=String(Number(tm[1])).padStart(2,'0'),min=tm[2]?String(tm[2]).padStart(2,'0'):'00';
-    time=hh+' h '+min
+  var approx=raw.match(/\bvers\s+([0-2]?\d)\s*h?\s*(?:ou|\/|-)\s*([0-2]?\d)\s*h\b/i),time='';
+  if(approx){
+    time='vers '+Number(approx[1])+' ou '+Number(approx[2])+' h'
+  }else{
+    var tm=raw.match(/\b(?:à\s+|a\s+|vers\s+)?([01]?\d|2[0-3])\s*(?:h|:)\s*([0-5]\d)?\b/i);
+    if(tm){
+      var hh=String(Number(tm[1])).padStart(2,'0'),min=tm[2]?String(tm[2]).padStart(2,'0'):'00';
+      time=hh+' h '+min
+    }
   }
   return{day:date||day,time:time}
 }
@@ -915,6 +920,7 @@ function replyChatInvite(){
 }
 function closeChatWoodPicker(){
   state.chatWoodRecipient=null;
+  if($('chatWoodTimeInput'))$('chatWoodTimeInput').value='';
   var modal=$('chatWoodPickerModal');if(modal){modal.classList.add('hidden');modal.setAttribute('aria-hidden','true')}
   if($('chatWoodPickerList'))$('chatWoodPickerList').innerHTML='';
   status('chatWoodPickerStatus','')
@@ -930,6 +936,7 @@ function openChatWoodPickerForRecipient(id,name,mode,message){
   closeChatInvite(false);
   var modal=$('chatWoodPickerModal'),title=$('chatWoodPickerTitle'),list=$('chatWoodPickerList');
   if(title)title.textContent=(state.chatWoodRecipient.mode==='alternative'?'🌲 Choisir un autre bois pour ':'🌲 Envoyer un bois à ')+state.chatWoodRecipient.name;
+  if($('chatWoodTimeInput'))$('chatWoodTimeInput').value='';
   var rows=mergeMyWoods();
   if(list){
     if(!rows.length)list.innerHTML='<div class="chatWoodEmpty">Vous n’avez encore aucun bois dans « Mes bois ».</div>';
@@ -963,10 +970,13 @@ async function sendChatWood(wood,button){
   status('chatWoodPickerStatus','Envoi du bois à '+rec.name+'…');
   try{
     await internalShareRequest('send',{recipientId:String(rec.id),recipientName:rec.name,wood:slimWood(wood)});
-    var l=chatWoodLabel(wood),where=l.city?' à '+l.city:'';
-    var message=rec.mode==='alternative'
-      ?'🌲 Est-ce que tu veux aller dans le bois « '+l.name+' »'+where+' ?'
-      :'🌲 Est-ce que tu veux aller dans le bois « '+l.name+' »'+where+' ?';
+    var l=chatWoodLabel(wood),where=l.city?' à '+l.city:'',rawTime=clean($('chatWoodTimeInput')&&$('chatWoodTimeInput').value||''),time='';
+    if(rawTime){
+      rawTime=rawTime.replace(/[?.!]+$/,'').trim();
+      if(!/^vers\b/i.test(rawTime))rawTime='vers '+rawTime;
+      time=' '+rawTime
+    }
+    var message='🌲 Est-ce que tu veux aller dans le bois « '+l.name+' »'+where+time+' ?';
     await sendChatMessage(message,rec.id);
     status('chatWoodPickerStatus','✅ Bois envoyé à '+rec.name+'.','ok');
     setTimeout(closeChatWoodPicker,850)
