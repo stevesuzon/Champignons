@@ -896,7 +896,7 @@ function chatInviteReplyText(yes,message){
   if(info.day&&info.time)when=' '+info.day+' à '+info.time;
   else if(info.day)when=' '+info.day;
   else if(info.time)when=' à '+info.time;
-  return yes?'Oui 👍 je viens aux champignons'+when+'. Dans quel bois ?':'Non 👎 je ne pourrai pas venir'+when+'.'
+  return yes?'Oui 👍 je viens aux champignons'+when+'. Dans quel bois tu veux qu’on aille ?':'Non 👎 je ne pourrai pas venir'+when+'.'
 }
 async function answerChatInvite(yes,button){
   var m=state.chatInvite;if(!m)return;
