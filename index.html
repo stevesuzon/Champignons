@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=65">
+<link rel="manifest" href="manifest.webmanifest?v=66">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=65">
+<link rel="stylesheet" href="champignons.css?v=66">
 
 </head><body>
 <header class="mushTop standaloneTop chatHeaderTop">
@@ -103,14 +103,14 @@
       <input id="entryEmail" type="email" inputmode="email" maxlength="190" autocomplete="email" placeholder="Adresse e-mail">
     </label>
 
-    <button id="entryContinueBtn" class="exactEntryButton" type="button" aria-label="Accéder à l’application">
-      <span aria-hidden="true">➜</span><span>ACCÉDER À L’APPLICATION</span>
+    <button id="entryContinueBtn" class="exactEntryButton" type="button" aria-label="Ouvrir Champignons" disabled>
+      <span aria-hidden="true">🍄</span><span>OUVRIR CHAMPIGNONS</span>
     </button>
 
     <div id="entryStatus" class="status exactEntryStatus"></div>
     <div id="entryNeedCouteau" class="entryNeedCouteau exactEntryError hidden">
-      <p><b>Compte Couteau Suisse non reconnu.</b><br>Vérifiez le nom, le prénom et l’adresse e-mail.</p>
-      <a id="openCouteauSuisseBtn" class="btn blue" href="https://carplay-telephone.appli-suzon.workers.dev/">OUVRIR COUTEAU SUISSE</a>
+      <p><b>VOUS N’ÊTES PAS INSCRIT À COUTEAU SUISSE</b><br>Inscrivez-vous d’abord avec votre nom, prénom et adresse e-mail.</p>
+      <a id="openCouteauSuisseBtn" class="btn blue" href="https://carplay-telephone.appli-suzon.workers.dev/">S’INSCRIRE À COUTEAU SUISSE</a>
     </div>
   </div>
 </div>
@@ -206,11 +206,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=65"></script>
-<script src="champignons.js?v=65" defer></script>
+<script src="config.js?v=66"></script>
+<script src="champignons.js?v=66" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=65',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=66',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
