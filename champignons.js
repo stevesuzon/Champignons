@@ -841,9 +841,9 @@ function chatProposalInfo(message){
       day=day.charAt(0).toUpperCase()+day.slice(1)
     }
   }
-  var approx=raw.match(/\bvers\s+([0-2]?\d)\s*h?\s*(?:ou|\/|-)\s*([0-2]?\d)\s*h\b/i),time='';
+  var approx=raw.match(/\bvers\s+([0-2]?\d)\s*h?\s*(?:ou|\/|-|–)\s*([0-2]?\d)\s*h\b/i),time='';
   if(approx){
-    time='vers '+Number(approx[1])+' ou '+Number(approx[2])+' h'
+    time='vers '+Number(approx[1])+' h–'+Number(approx[2])+' h'
   }else{
     var tm=raw.match(/\b(?:à\s+|a\s+|vers\s+)?([01]?\d|2[0-3])\s*(?:h|:)\s*([0-5]\d)?\b/i);
     if(tm){
@@ -873,9 +873,8 @@ function fillChatInviteChangeMenus(){
   }
   if(timeSelect){
     var html='<option value="">Garder l’horaire proposé</option><option value="none">Sans horaire</option>';
-    for(var h=3;h<=20;h++){
-      html+='<option value="vers '+h+' h">vers '+h+' h</option>';
-      if(h<20)html+='<option value="vers '+h+' ou '+(h+1)+' h">vers '+h+' ou '+(h+1)+' h</option>'
+    for(var h=12;h<18;h++){
+      html+='<option value="vers '+h+' h–'+(h+1)+' h">vers '+h+' h–'+(h+1)+' h</option>'
     }
     timeSelect.innerHTML=html
   }
@@ -893,7 +892,10 @@ async function submitChatInviteChange(){
       var wood=(state.chatInviteChangeWoods||[])[woodIndex];
       if(!wood)throw new Error('BOIS_INVALIDE');
       await internalShareRequest('send',{recipientId:String(recipientId),recipientName:recipientName,wood:slimWood(wood)});
-      var l=chatWoodLabel(wood),where=l.city?' à '+l.city:'',when=timeValue&&timeValue!=='none'?' '+timeValue:'';
+      var l=chatWoodLabel(wood),where=l.city?' à '+l.city:'',originalInfo=chatProposalInfo(m.message||''),when='';
+      if(timeValue==='none')when='';
+      else if(timeValue)when=' '+timeValue;
+      else if(originalInfo.time)when=' '+originalInfo.time;
       message='🌲 Est-ce que tu veux aller dans le bois « '+l.name+' »'+where+when+' ?'
     }else{
       message=timeValue==='none'
