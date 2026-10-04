@@ -1169,18 +1169,24 @@
   justify-content:center;
   gap:3%;
   padding:0 3%;
-  border:2px solid #d9ff7a;
+  border:2px solid #767b80;
   border-radius:7vw;
-  background:linear-gradient(180deg,#4cdf42,#0ea52e);
-  color:white;
-  box-shadow:0 4px 14px rgba(0,0,0,.25),0 0 14px rgba(120,255,118,.25);
+  background:linear-gradient(180deg,#6f7479,#4e5358);
+  color:#e7e9eb;
+  box-shadow:0 4px 14px rgba(0,0,0,.25);
   font-size:clamp(16px,4vw,25px);
   line-height:1;
   font-weight:1000;
   white-space:nowrap;
 }
+.exactEntryButton.ready{
+  border-color:#8bc9ff;
+  background:linear-gradient(180deg,#258ee8,#1267b8);
+  color:#fff;
+  box-shadow:0 4px 14px rgba(0,0,0,.25),0 0 16px rgba(37,142,232,.34);
+}
 .exactEntryButton:active{transform:scale(.985)}
-.exactEntryButton:disabled{opacity:.72}
+.exactEntryButton:disabled{opacity:1;cursor:not-allowed}
 .exactEntryStatus{
   position:absolute;
   left:12%;
