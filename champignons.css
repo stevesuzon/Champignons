@@ -2095,3 +2095,41 @@
   .chatInviteActions{grid-template-columns:1fr}
   .chatInviteReply,.chatInviteWood{grid-column:1}
 }
+
+
+/* V72 — horaire approximatif invitation bois */
+.chatWoodTimeField{
+  width:min(100%,680px);
+  margin:14px auto 6px;
+  display:flex;
+  flex-direction:column;
+  gap:7px;
+}
+.chatWoodTimeField>span{
+  font-size:13px;
+  font-weight:1000;
+  color:#e7f5eb;
+}
+.chatWoodTimeField>span small{
+  font-size:11px;
+  font-weight:800;
+  color:#adc2b3;
+}
+#chatWoodTimeInput{
+  width:100%;
+  min-height:50px;
+  box-sizing:border-box;
+  padding:0 14px;
+  border:2px solid #4f8060;
+  border-radius:13px;
+  outline:none;
+  background:#08170e;
+  color:#fff;
+  font-size:17px;
+  font-weight:850;
+}
+#chatWoodTimeInput::placeholder{color:#91a79a}
+#chatWoodTimeInput:focus{
+  border-color:#76db91;
+  box-shadow:0 0 0 2px rgba(118,219,145,.14);
+}
