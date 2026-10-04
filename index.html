@@ -4,17 +4,43 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=62">
+<link rel="manifest" href="manifest.webmanifest?v=63">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=62">
+<link rel="stylesheet" href="champignons.css?v=63">
 
 </head><body>
-<header class="mushTop standaloneTop"><div class="standaloneLogo" aria-hidden="true">🍄</div><h1>CHAMPIGNONS</h1><button id="installAppBtn" type="button" class="topInstall">INSTALLER</button><button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button></header>
+<header class="mushTop standaloneTop chatHeaderTop">
+  <div class="topChatRecipient">
+    <span class="topChatRecipientLabel">💬 À :</span>
+    <div class="topChatRecipientBox">
+      <input id="chatRecipientSearch" type="text" autocomplete="off" value="Tout le monde" aria-label="Choisir le destinataire du message">
+      <div id="chatRecipientResults" class="chatRecipientResults hidden"></div>
+    </div>
+  </div>
+  <button id="installAppBtn" type="button" class="topInstall">INSTALLÉE</button>
+  <button id="mushSettingsBtn" type="button" class="topSettings" aria-label="Réglages">⚙️</button>
+</header>
 <main class="wrap">
 <div id="memberContent">
 <section id="homeView" class="panel mushroomHomePanel">
-  <div id="freeAccessBanner" class="freeAccessBanner">🎁 CHAMPIGNONS GRATUIT JUSQU’AU 31 DÉCEMBRE 2026</div>
-  <h3>Que voulez-vous faire ?</h3>
+  <div id="homeChatCard" class="homeChatCard homeChatCardTop">
+    <div class="chatTopLine">
+      <div><b>💬 CHAT EN DIRECT</b><span>Inscrits Champignons</span></div>
+      <em>DIRECT</em>
+    </div>
+    <div id="chatMessages" class="chatMessages"><div class="chatEmpty">Chargement des messages…</div></div>
+    <div class="chatComposer">
+      <select id="chatRecipientSelect" class="chatRecipientSelectHidden" aria-hidden="true" tabindex="-1">
+        <option value="">Tout le monde</option>
+      </select>
+      <div class="chatSendLine">
+        <textarea id="chatInput" maxlength="500" rows="1" placeholder="Écrire un message…"></textarea>
+        <button id="chatSendBtn" type="button" class="btn chatSendBtn">ENVOYER</button>
+      </div>
+      <div id="chatStatus" class="status chatStatusCompact"></div>
+    </div>
+  </div>
+
   <div class="actions mushroomHomeActions">
     <button id="browseBtn" class="btn returnWoodHome">🌲 ALLER DANS UN BOIS<span>Tous les bois du plus près au plus loin, calculés depuis votre position sauvegardée</span></button>
     <button id="addSpotBtn" class="btn addWoodHome">➕ AJOUTER UN BOIS<span>Position GPS ou adresse · photo obligatoire sauf administrateur</span></button>
@@ -22,23 +48,6 @@
   </div>
   <button id="carStatus" type="button" class="carSavedStatus" disabled>Aucun emplacement de voiture enregistré.</button>
   <div id="identityInfo" class="status"></div>
-
-  <div id="homeChatCard" class="homeChatCard">
-    <div class="chatTopLine">
-      <div><b>💬 CHAT CHAMPIGNONS</b><span>Entre personnes inscrites à Champignons</span></div>
-      <em>EN DIRECT</em>
-    </div>
-    <div id="chatMessages" class="chatMessages"><div class="chatEmpty">Chargement des messages…</div></div>
-    <div class="chatComposer">
-      <label for="chatRecipientSelect">Prévenir quelqu’un</label>
-      <select id="chatRecipientSelect">
-        <option value="">Tout le monde — pas d’alerte personnelle</option>
-      </select>
-      <textarea id="chatInput" maxlength="500" rows="2" placeholder="Ex. Qui veut aller aux champignons demain ?"></textarea>
-      <button id="chatSendBtn" type="button" class="btn chatSendBtn">ENVOYER</button>
-      <div id="chatStatus" class="status"></div>
-    </div>
-  </div>
 </section>
 <section id="addView" class="hidden">
   <div class="topBack"><button id="backHome1">← RETOUR</button><b id="addViewTitle">Ajouter un bois</b></div>
@@ -197,11 +206,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=62"></script>
-<script src="champignons.js?v=62" defer></script>
+<script src="config.js?v=63"></script>
+<script src="champignons.js?v=63" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=62',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=63',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
