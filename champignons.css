@@ -1947,3 +1947,105 @@
 @supports not (height:100dvh){
   .chatInviteOverlay,.chatInviteCard{height:100vh;min-height:100vh}
 }
+
+
+/* V68 — envoi du bois depuis le chat */
+.chatInviteWood{
+  grid-column:1/-1;
+  background:#2d6f35!important;
+  border-color:#84d58e!important;
+}
+.chatWoodBtn{
+  min-height:32px;
+  padding:5px 9px;
+  border:1px solid #69b77c;
+  border-radius:8px;
+  background:#245d34;
+  color:#eff9f2;
+  font-size:11px;
+  font-weight:900;
+}
+.chatWoodPickerOverlay{
+  position:fixed;
+  inset:0;
+  z-index:9850;
+  width:100vw;
+  height:100dvh;
+  min-height:100dvh;
+  display:flex;
+  align-items:stretch;
+  justify-content:stretch;
+  background:#06120a;
+}
+.chatWoodPickerOverlay.hidden{display:none!important}
+.chatWoodPickerCard{
+  position:relative;
+  width:100%;
+  min-height:100dvh;
+  box-sizing:border-box;
+  overflow:auto;
+  padding:max(70px,calc(env(safe-area-inset-top) + 54px)) 16px max(24px,env(safe-area-inset-bottom));
+  background:
+    radial-gradient(circle at 50% 0%,rgba(48,117,66,.34),transparent 32%),
+    linear-gradient(180deg,#153a22 0%,#0a2012 55%,#06130b 100%);
+  color:#fff;
+}
+.chatWoodPickerCard h2{
+  margin:10px 0 8px;
+  text-align:center;
+  font-size:clamp(26px,7vw,38px);
+}
+.chatWoodPickerCard>p{
+  max-width:680px;
+  margin:0 auto 14px;
+  text-align:center;
+  color:#ccdbd0;
+  line-height:1.35;
+}
+.chatWoodPickerList{
+  width:min(100%,680px);
+  margin:12px auto 0;
+  display:flex;
+  flex-direction:column;
+  gap:10px;
+}
+.chatWoodChoice{
+  position:relative;
+  display:flex;
+  flex-direction:column;
+  align-items:flex-start;
+  gap:4px;
+  width:100%;
+  min-height:78px;
+  padding:13px 92px 13px 14px;
+  border:1px solid #4d805b;
+  border-radius:16px;
+  background:#102719;
+  color:#fff;
+  text-align:left;
+}
+.chatWoodChoice strong{font-size:17px}
+.chatWoodChoice small{color:#bfd1c4;font-size:12px}
+.chatWoodChoice em{
+  position:absolute;
+  right:13px;
+  top:50%;
+  transform:translateY(-50%);
+  font-style:normal;
+  font-size:11px;
+  font-weight:1000;
+  color:#dfffe7;
+}
+.chatWoodChoice:active{background:#1a4328}
+.chatWoodEmpty{
+  padding:22px 14px;
+  border:1px solid #6c766f;
+  border-radius:15px;
+  background:#17221a;
+  text-align:center;
+  color:#d6ddd8;
+  font-weight:800;
+}
+@supports not (height:100dvh){
+  .chatWoodPickerOverlay,.chatWoodPickerCard{height:100vh;min-height:100vh}
+}
