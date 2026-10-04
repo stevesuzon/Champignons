@@ -298,7 +298,9 @@ async function handleChat(request,env){
   if(action==='list'){
     const rows=await env.DB.prepare(`SELECT id,sender_member_id AS senderId,sender_name AS senderName,
       recipient_member_id AS recipientId,recipient_name AS recipientName,message,created_at AS createdAt
-      FROM mushroom_chat_messages ORDER BY id DESC LIMIT 80`).all();
+      FROM mushroom_chat_messages
+      WHERE recipient_member_id IS NULL OR sender_member_id=? OR recipient_member_id=?
+      ORDER BY id DESC LIMIT 80`).bind(self.id,self.id).all();
     return json({ok:true,selfId:self.id,messages:(rows.results||[]).reverse()})
   }
   if(action==='send'){
