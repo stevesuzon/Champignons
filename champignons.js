@@ -5,7 +5,7 @@ var API_BASE=String(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.API_BAS
 var COUTEAU_SUISSE_URL=String(window.CHAMPIGNONS_CONFIG&&window.CHAMPIGNONS_CONFIG.COUTEAU_SUISSE_URL||API_BASE||'').replace(/\/+$/,'')+'/';
 var MAIN_CODE_KEY='champignons_main_subscription_code_v1';
 var IDENTITY_KEY='carplay_app_identity_v240';
-var state={gps:null,photo:null,analysis:null,stream:null,accessToken:'',spots:[],lastMode:'nearby',addMode:'add',currentGps:null,browseSection:'public',justImportedSharedWood:false,verifyTargetId:'',shareTargetWood:null,shareMembers:[],photoMode:'with'};
+var state={gps:null,photo:null,analysis:null,stream:null,accessToken:'',spots:[],lastMode:'nearby',addMode:'add',currentGps:null,browseSection:'public',justImportedSharedWood:false,verifyTargetId:'',shareTargetWood:null,shareMembers:[],photoMode:'with',chatSelfId:0,chatMembers:[],chatPushReady:false,chatLastId:0};
 var FREE_UNTIL_CACHE_KEY='carplay_contest_app_free_until_ms';
 var TEMP_FREE_UNTIL_MS=Date.parse('2026-12-31T23:59:59+01:00');
 function temporaryFreeActive(){return Date.now()<=TEMP_FREE_UNTIL_MS}
@@ -74,13 +74,15 @@ async function toggleNotifications(){
   if(p==='denied'){await openNotificationSystemSettings();return}
   if(p==='unsupported'){await refreshNotificationSettings();return}
   if(p==='granted'){
-    saveNotificationsWanted(!notificationsWanted());await refreshNotificationSettings();
-    status('notificationStatus',notificationsWanted()?'✅ Vous recevrez les alertes Champignons.':'🔕 Les notifications Champignons sont coupées sur ce téléphone.',notificationsWanted()?'ok':'');
+    var next=!notificationsWanted();saveNotificationsWanted(next);
+    if(next)await ensureChatPushSubscription();else await disableChatPushSubscription();
+    await refreshNotificationSettings();
+    status('notificationStatus',notificationsWanted()?'✅ Vous recevrez les alertes Champignons et les messages du chat qui vous sont adressés.':'🔕 Les notifications Champignons sont coupées sur ce téléphone.',notificationsWanted()?'ok':'');
     return
   }
   try{
     var result=await Notification.requestPermission();
-    if(result==='granted'){saveNotificationsWanted(true);status('notificationStatus','✅ Notifications autorisées.','ok')}
+    if(result==='granted'){saveNotificationsWanted(true);await ensureChatPushSubscription();status('notificationStatus','✅ Notifications autorisées, y compris pour le chat Champignons.','ok')}
     else{saveNotificationsWanted(false);status('notificationStatus','🚫 Les notifications sont bloquées dans les réglages du téléphone.','bad')}
   }catch(e){status('notificationStatus','❌ Impossible de demander l’autorisation des notifications.','bad')}
   await refreshNotificationSettings()
@@ -694,6 +696,129 @@ async function fetchAllChampignonsMembers(){
   }catch(_){}
   return []
 }
+
+function b64UrlToBytes(value){
+  var s=String(value||'').replace(/-/g,'+').replace(/_/g,'/');while(s.length%4)s+='=';
+  var raw=atob(s),out=new Uint8Array(raw.length);for(var i=0;i<raw.length;i++)out[i]=raw.charCodeAt(i);return out
+}
+async function ensureChatPushSubscription(){
+  if(notificationPermissionState()!=='granted'||!notificationsWanted()||!('serviceWorker' in navigator)||!('PushManager' in window))return false;
+  try{
+    var reg=await navigator.serviceWorker.ready;
+    var kr=await fetch(mushroomAiBase()+'/api/mushrooms/push-config',{cache:'no-store'}),kj=await kr.json();
+    if(!kr.ok||!kj||!kj.publicKey)return false;
+    var sub=await reg.pushManager.getSubscription();
+    if(!sub)sub=await reg.pushManager.subscribe({userVisibleOnly:true,applicationServerKey:b64UrlToBytes(kj.publicKey)});
+    var r=await fetch(mushroomAiBase()+'/api/mushrooms/push',{
+      method:'POST',headers:authHeaders(),
+      body:JSON.stringify(accessPayload({action:'subscribe',endpoint:sub.endpoint})),cache:'no-store'
+    }),j=await r.json().catch(function(){return{}});
+    state.chatPushReady=!!(r.ok&&j&&j.ok);
+    return state.chatPushReady
+  }catch(_){state.chatPushReady=false;return false}
+}
+async function disableChatPushSubscription(){
+  if(!('serviceWorker' in navigator))return;
+  try{
+    var reg=await navigator.serviceWorker.ready,sub=await reg.pushManager.getSubscription();if(!sub)return;
+    await fetch(mushroomAiBase()+'/api/mushrooms/push',{
+      method:'POST',headers:authHeaders(),
+      body:JSON.stringify(accessPayload({action:'unsubscribe',endpoint:sub.endpoint})),cache:'no-store'
+    });
+    state.chatPushReady=false
+  }catch(_){}
+}
+function chatMemberName(m){
+  return (clean(m&&m.firstName||m&&m.first_name)+' '+clean(m&&m.lastName||m&&m.last_name)).trim()||clean(m&&m.name)||'Membre Champignons'
+}
+async function loadChatMembers(){
+  var select=$('chatRecipientSelect');if(!select)return;
+  try{
+    var rows=await fetchAllChampignonsMembers();state.chatMembers=rows;
+    var current=String(select.value||'');
+    select.innerHTML='<option value="">Tout le monde — pas d’alerte personnelle</option>'+rows.map(function(m){
+      return '<option value="'+Number(m.id||0)+'">🔔 '+esc(chatMemberName(m))+'</option>'
+    }).join('');
+    if(current&&Array.from(select.options).some(function(o){return o.value===current}))select.value=current
+  }catch(_){}
+}
+function chatTimeLabel(ms){
+  var d=new Date(Number(ms)||Date.now()),now=new Date();
+  if(d.toDateString()===now.toDateString())return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
+  return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+}
+function renderChatMessages(rows){
+  var box=$('chatMessages');if(!box)return;
+  if(!rows.length){box.innerHTML='<div class="chatEmpty">Aucun message pour le moment. Écrivez le premier message 🍄</div>';return}
+  var selfId=Number(state.chatSelfId||0);
+  box.innerHTML=rows.map(function(m){
+    var mine=Number(m.senderId)===selfId,forMe=Number(m.recipientId||0)===selfId;
+    var target=m.recipientName?'<div class="chatTarget">🔔 Pour '+esc(m.recipientName)+'</div>':'';
+    var actions=!mine?'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">OUI 👍</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">RÉPONDRE</button></div>':'';
+    return '<div class="chatMessage'+(mine?' mine':'')+(forMe?' forMe':'')+'"><div class="chatMessageHead"><b>'+esc(m.senderName||'Membre Champignons')+'</b><time>'+esc(chatTimeLabel(m.createdAt))+'</time></div>'+target+'<div class="chatMessageText">'+esc(m.message||'')+'</div>'+actions+'</div>'
+  }).join('');
+  Array.from(box.querySelectorAll('.chatReplyBtn')).forEach(function(b){b.onclick=function(){
+    var id=String(Number(b.dataset.chatSender||0)),sel=$('chatRecipientSelect'),inp=$('chatInput');
+    if(sel&&Array.from(sel.options).some(function(o){return o.value===id}))sel.value=id;
+    if(inp){inp.placeholder='Répondre à '+clean(b.dataset.chatName||'cette personne')+'…';inp.focus()}
+  }});
+  Array.from(box.querySelectorAll('.chatYesBtn')).forEach(function(b){b.onclick=function(){sendChatMessage('Oui 👍',Number(b.dataset.chatSender||0),b)}});
+  box.scrollTop=box.scrollHeight
+}
+async function loadChat(silent){
+  if(!identityComplete())return;
+  try{
+    var r=await fetch(mushroomAiBase()+'/api/mushrooms/chat',{
+      method:'POST',headers:authHeaders(),body:JSON.stringify(accessPayload({action:'list'})),cache:'no-store'
+    }),j=await r.json().catch(function(){return{}});
+    if(!r.ok||!j||!j.ok||!Array.isArray(j.messages))throw new Error('chat');
+    state.chatSelfId=Number(j.selfId||0);
+    var rows=j.messages,last=rows.length?Number(rows[rows.length-1].id||0):0;
+    if(last>state.chatLastId)state.chatLastId=last;
+    renderChatMessages(rows);
+    if(!silent)status('chatStatus','Chat à jour.','ok')
+  }catch(_){if(!silent)status('chatStatus','Impossible de charger le chat pour le moment.','bad')}
+}
+function detectChatRecipient(message){
+  var n=normIdentityName(message||''),hit=(state.chatMembers||[]).find(function(m){
+    var name=normIdentityName(chatMemberName(m));return name&&n.indexOf(name)>=0
+  });
+  return hit?Number(hit.id||0):0
+}
+async function sendChatMessage(message,recipientId,button){
+  message=clean(message);if(!message)return;
+  if(button)button.disabled=true;
+  try{
+    var r=await fetch(mushroomAiBase()+'/api/mushrooms/chat',{
+      method:'POST',headers:authHeaders(),
+      body:JSON.stringify(accessPayload({action:'send',message:message,recipientId:Number(recipientId||0)})),cache:'no-store'
+    }),j=await r.json().catch(function(){return{}});
+    if(!r.ok||!j||!j.ok)throw new Error('send');
+    status('chatStatus',Number(recipientId)>0?'✅ Message envoyé et notification demandée.':'✅ Message envoyé.','ok');
+    await loadChat(true)
+  }catch(_){status('chatStatus','❌ Impossible d’envoyer le message.','bad')}
+  finally{if(button)button.disabled=false}
+}
+async function sendChat(){
+  var input=$('chatInput'),sel=$('chatRecipientSelect'),button=$('chatSendBtn'),message=clean(input&&input.value||'');
+  if(!message){status('chatStatus','Écrivez un message.','bad');return}
+  var recipientId=Number(sel&&sel.value||0);
+  if(!recipientId)recipientId=detectChatRecipient(message);
+  if(button)button.disabled=true;
+  await sendChatMessage(message,recipientId,button);
+  if(input)input.value='';
+}
+function startChat(){
+  loadChatMembers();loadChat(false);
+  if(notificationPermissionState()==='granted'&&notificationsWanted())ensureChatPushSubscription();
+  if(state.chatTimer)clearInterval(state.chatTimer);
+  state.chatTimer=setInterval(function(){if(document.visibilityState==='visible')loadChat(true)},4000);
+  try{
+    var qp=new URLSearchParams(location.search);
+    if(qp.get('chat')==='1')setTimeout(function(){var c=$('homeChatCard');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})},700)
+  }catch(_){}
+}
+
 async function loadShareMembers(){
   await syncChampignonsMember();
   var list=$('shareMemberList');if(list)list.innerHTML='';
@@ -1413,6 +1538,8 @@ async function loadMembers(){
 }
 function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref();refreshSavedPositionPanel();refreshNotificationSettings()}
 function closeMushSettings(){var x=$('mushSettings');x.classList.add('hidden');x.setAttribute('aria-hidden','true')}
+if($('chatSendBtn'))$('chatSendBtn').onclick=sendChat;
+if($('chatInput'))$('chatInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat()}});
 if($('mushSettingsBtn'))$('mushSettingsBtn').onclick=openMushSettings;
 if($('closeMushSettings'))$('closeMushSettings').onclick=closeMushSettings;
 if($('openAccountPanelBtn'))$('openAccountPanelBtn').onclick=function(){openSettingsPanel('accountPanel')};
@@ -1447,5 +1574,5 @@ Array.from(document.querySelectorAll('[data-gps]')).forEach(function(b){b.onclic
 function refreshInstallButton(){var b=$('installAppBtn');if(!b)return;b.textContent=isStandaloneApp()?'INSTALLÉE':'INSTALLER'}
 window.addEventListener('appinstalled',refreshInstallButton);
 window.addEventListener('load',function(){setTimeout(checkMushroomOpportunity,2200)});
-window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){if(identityComplete())refreshAccountLinkStatus(true);refreshNotificationSettings()}});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');if(identityComplete())syncChampignonsMember();importSharedWoodFromUrl();handleChampignonsConfirmationReturn().then(function(done){if(!done)startEntryGate()}).catch(function(){startEntryGate()});
+window.addEventListener('pagehide',stopCamera);window.addEventListener('visibilitychange',function(){if(document.visibilityState==='visible'){if(identityComplete()){refreshAccountLinkStatus(true);loadChat(true);loadChatMembers()}refreshNotificationSettings()}});fillAccountFields();refreshInstallButton();refreshCarButton();refreshSavedPositionPanel();upgradeSavedWoodPhotos();show('homeView');if(identityComplete()){syncChampignonsMember();startChat()}importSharedWoodFromUrl();handleChampignonsConfirmationReturn().then(function(done){if(!done)startEntryGate()}).catch(function(){startEntryGate()});
 })();
