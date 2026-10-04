@@ -118,8 +118,44 @@ async function ensureMemberSchema(env){
     created_at INTEGER NOT NULL,
     UNIQUE(recipient_member_id,sender_member_id,wood_id)
   )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_chat_messages (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    sender_member_id INTEGER NOT NULL,
+    sender_name TEXT NOT NULL,
+    recipient_member_id INTEGER,
+    recipient_name TEXT,
+    message TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_push_subscriptions (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    member_id INTEGER NOT NULL,
+    endpoint TEXT NOT NULL UNIQUE,
+    enabled INTEGER NOT NULL DEFAULT 1,
+    created_at INTEGER NOT NULL,
+    updated_at INTEGER NOT NULL
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_push_pending (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    subscription_id INTEGER NOT NULL,
+    title TEXT NOT NULL,
+    body TEXT NOT NULL,
+    target_url TEXT NOT NULL,
+    created_at INTEGER NOT NULL,
+    consumed_at INTEGER
+  )`).run();
+  await env.DB.prepare(`CREATE TABLE IF NOT EXISTS mushroom_vapid_keys (
+    id INTEGER PRIMARY KEY CHECK(id=1),
+    public_key TEXT NOT NULL,
+    private_jwk TEXT NOT NULL,
+    created_at INTEGER NOT NULL
+  )`).run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_members_seen ON mushroom_members(last_seen DESC)').run();
   await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_shared_recipient ON mushroom_shared_woods(recipient_member_id,created_at DESC)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_chat_created ON mushroom_chat_messages(created_at DESC)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_chat_recipient ON mushroom_chat_messages(recipient_member_id,created_at DESC)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_push_member ON mushroom_push_subscriptions(member_id,enabled)').run();
+  await env.DB.prepare('CREATE INDEX IF NOT EXISTS idx_mushroom_push_pending_sub ON mushroom_push_pending(subscription_id,consumed_at,created_at DESC)').run();
 }
 async function upsertMember(env,body){
   await ensureMemberSchema(env);
@@ -204,6 +240,124 @@ async function handleShare(request,env){
   const body=await request.json().catch(()=>({})),self=await upsertMember(env,body);
   if(!self)return json({ok:false,error:'COMPTE_CHAMPIGNONS_INVALIDE'},400);
   return handleShareBody(body,env,self,cleanText(body.action,40));
+}
+
+
+function b64urlBytes(bytes){
+  let bin='';const a=bytes instanceof Uint8Array?bytes:new Uint8Array(bytes);
+  for(let i=0;i<a.length;i++)bin+=String.fromCharCode(a[i]);
+  return btoa(bin).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')
+}
+function b64urlText(value){return b64urlBytes(new TextEncoder().encode(String(value)))}
+async function ensureVapidKeys(env){
+  await ensureMemberSchema(env);
+  let row=await env.DB.prepare('SELECT public_key AS publicKey,private_jwk AS privateJwk FROM mushroom_vapid_keys WHERE id=1 LIMIT 1').first();
+  if(row&&row.publicKey&&row.privateJwk)return row;
+  const pair=await crypto.subtle.generateKey({name:'ECDSA',namedCurve:'P-256'},true,['sign','verify']);
+  const raw=new Uint8Array(await crypto.subtle.exportKey('raw',pair.publicKey));
+  const privateJwk=await crypto.subtle.exportKey('jwk',pair.privateKey);
+  await env.DB.prepare(`INSERT OR IGNORE INTO mushroom_vapid_keys(id,public_key,private_jwk,created_at) VALUES(1,?,?,?)`)
+    .bind(b64urlBytes(raw),JSON.stringify(privateJwk),Date.now()).run();
+  row=await env.DB.prepare('SELECT public_key AS publicKey,private_jwk AS privateJwk FROM mushroom_vapid_keys WHERE id=1 LIMIT 1').first();
+  if(!row)throw new Error('VAPID_KEY_ERROR');
+  return row
+}
+async function vapidAuthorization(endpoint,env){
+  const keys=await ensureVapidKeys(env),aud=new URL(endpoint).origin,now=Math.floor(Date.now()/1000);
+  const input=b64urlText(JSON.stringify({typ:'JWT',alg:'ES256'}))+'.'+b64urlText(JSON.stringify({aud,exp:now+43200,sub:'mailto:appli.suzon@gmail.com'}));
+  const jwk=JSON.parse(keys.privateJwk);
+  const key=await crypto.subtle.importKey('jwk',jwk,{name:'ECDSA',namedCurve:'P-256'},false,['sign']);
+  const sig=await crypto.subtle.sign({name:'ECDSA',hash:'SHA-256'},key,new TextEncoder().encode(input));
+  return {header:'vapid t='+input+'.'+b64urlBytes(new Uint8Array(sig))+', k='+keys.publicKey,publicKey:keys.publicKey}
+}
+async function sendContentlessPush(endpoint,env){
+  try{
+    const v=await vapidAuthorization(endpoint,env);
+    const r=await fetch(endpoint,{method:'POST',headers:{Authorization:v.header,TTL:'86400',Urgency:'high'}});
+    return {ok:r.ok,status:r.status}
+  }catch(e){return {ok:false,status:0,error:String(e&&e.message||e)}}
+}
+async function notifyChatRecipient(env,memberId,title,body){
+  await ensureMemberSchema(env);
+  const subs=await env.DB.prepare('SELECT id,endpoint FROM mushroom_push_subscriptions WHERE member_id=? AND enabled=1 LIMIT 8').bind(memberId).all();
+  const rows=subs.results||[];
+  for(const sub of rows){
+    await env.DB.prepare(`INSERT INTO mushroom_push_pending(subscription_id,title,body,target_url,created_at,consumed_at)
+      VALUES(?,?,?,?,?,NULL)`).bind(sub.id,cleanText(title,120),cleanText(body,260),'./?chat=1',Date.now()).run();
+    const sent=await sendContentlessPush(sub.endpoint,env);
+    if(sent.status===404||sent.status===410){
+      await env.DB.prepare('UPDATE mushroom_push_subscriptions SET enabled=0,updated_at=? WHERE id=?').bind(Date.now(),sub.id).run()
+    }
+  }
+  try{await env.DB.prepare('DELETE FROM mushroom_push_pending WHERE created_at<?').bind(Date.now()-7*86400000).run()}catch(_){}
+}
+async function handleChat(request,env){
+  const body=await request.json().catch(()=>({})),action=cleanText(body.action,30)||'list';
+  const self=await upsertMember(env,body);
+  if(!self)return json({ok:false,error:'COMPTE_CHAMPIGNONS_INVALIDE'},400);
+  if(action==='list'){
+    const rows=await env.DB.prepare(`SELECT id,sender_member_id AS senderId,sender_name AS senderName,
+      recipient_member_id AS recipientId,recipient_name AS recipientName,message,created_at AS createdAt
+      FROM mushroom_chat_messages ORDER BY id DESC LIMIT 80`).all();
+    return json({ok:true,selfId:self.id,messages:(rows.results||[]).reverse()})
+  }
+  if(action==='send'){
+    const message=cleanText(body.message,500);
+    if(message.length<1)return json({ok:false,error:'MESSAGE_VIDE'},400);
+    let recipientId=Number(body.recipientId||0),recipient=null;
+    if(Number.isFinite(recipientId)&&recipientId>0){
+      recipient=await env.DB.prepare('SELECT id,first_name AS firstName,last_name AS lastName FROM mushroom_members WHERE id=? LIMIT 1').bind(recipientId).first();
+      if(!recipient)return json({ok:false,error:'DESTINATAIRE_INTROUVABLE'},404)
+    }else recipientId=0;
+    const senderName=(cleanText(self.firstName,80)+' '+cleanText(self.lastName,80)).trim();
+    const recipientName=recipient?(cleanText(recipient.firstName,80)+' '+cleanText(recipient.lastName,80)).trim():'';
+    const now=Date.now();
+    const q=await env.DB.prepare(`INSERT INTO mushroom_chat_messages(sender_member_id,sender_name,recipient_member_id,recipient_name,message,created_at)
+      VALUES(?,?,?,?,?,?)`).bind(self.id,senderName,recipientId||null,recipientName||null,message,now).run();
+    const id=Number(q&&q.meta&&q.meta.last_row_id||0);
+    if(recipient&&Number(recipient.id)!==Number(self.id)){
+      await notifyChatRecipient(env,recipient.id,'🍄 '+senderName,message)
+    }
+    return json({ok:true,message:{id,senderId:self.id,senderName,recipientId:recipientId||null,recipientName:recipientName||'',message,createdAt:now}})
+  }
+  return json({ok:false,error:'ACTION_CHAT_INVALIDE'},400)
+}
+async function handlePush(request,env){
+  const body=await request.json().catch(()=>({})),action=cleanText(body.action,30);
+  const self=await upsertMember(env,body);
+  if(!self)return json({ok:false,error:'COMPTE_CHAMPIGNONS_INVALIDE'},400);
+  if(action==='subscribe'){
+    const endpoint=String(body.endpoint||'').trim().slice(0,2400);
+    if(!/^https:\/\//i.test(endpoint))return json({ok:false,error:'PUSH_ENDPOINT_INVALIDE'},400);
+    const now=Date.now();
+    await env.DB.prepare(`INSERT INTO mushroom_push_subscriptions(member_id,endpoint,enabled,created_at,updated_at)
+      VALUES(?,?,1,?,?)
+      ON CONFLICT(endpoint) DO UPDATE SET member_id=excluded.member_id,enabled=1,updated_at=excluded.updated_at`)
+      .bind(self.id,endpoint,now,now).run();
+    return json({ok:true})
+  }
+  if(action==='unsubscribe'){
+    const endpoint=String(body.endpoint||'').trim().slice(0,2400);
+    await env.DB.prepare('UPDATE mushroom_push_subscriptions SET enabled=0,updated_at=? WHERE endpoint=?').bind(Date.now(),endpoint).run();
+    return json({ok:true})
+  }
+  return json({ok:false,error:'ACTION_PUSH_INVALIDE'},400)
+}
+async function handlePushPending(request,env){
+  await ensureMemberSchema(env);
+  const body=await request.json().catch(()=>({})),endpoint=String(body.endpoint||'').trim().slice(0,2400);
+  if(!endpoint)return json({ok:false,error:'ENDPOINT_MANQUANT'},400);
+  const sub=await env.DB.prepare('SELECT id FROM mushroom_push_subscriptions WHERE endpoint=? AND enabled=1 LIMIT 1').bind(endpoint).first();
+  if(!sub)return json({ok:true,pending:null});
+  const row=await env.DB.prepare(`SELECT id,title,body,target_url AS targetUrl FROM mushroom_push_pending
+    WHERE subscription_id=? AND consumed_at IS NULL ORDER BY id DESC LIMIT 1`).bind(sub.id).first();
+  if(!row)return json({ok:true,pending:null});
+  await env.DB.prepare('UPDATE mushroom_push_pending SET consumed_at=? WHERE id=?').bind(Date.now(),row.id).run();
+  return json({ok:true,pending:row})
+}
+async function handlePushConfig(env){
+  const keys=await ensureVapidKeys(env);
+  return json({ok:true,publicKey:keys.publicKey})
 }
 
 function distanceKm(a,b,c,d){const R=6371,p1=a*Math.PI/180,p2=c*Math.PI/180,dp=(c-a)*Math.PI/180,dl=(d-b)*Math.PI/180,h=Math.sin(dp/2)**2+Math.cos(p1)*Math.cos(p2)*Math.sin(dl/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
@@ -301,6 +455,10 @@ export default {
     if(request.method==='OPTIONS')return new Response(null,{status:204,headers:JSON_HEADERS});
     if(url.pathname==='/api/mushrooms/members'&&request.method==='POST'){try{return await handleMembers(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/mushrooms/share'&&request.method==='POST'){try{return await handleShare(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/mushrooms/chat'&&request.method==='POST'){try{return await handleChat(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/mushrooms/push-config'&&request.method==='GET'){try{return await handlePushConfig(env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/mushrooms/push'&&request.method==='POST'){try{return await handlePush(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
+    if(url.pathname==='/api/mushrooms/push-pending'&&request.method==='POST'){try{return await handlePushPending(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits/report'&&request.method==='POST'){try{return await saveVisitReport(request,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits'&&request.method==='GET'){try{return await listVisitReports(url,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
     if(url.pathname==='/api/visits/recent-found'&&request.method==='GET'){try{return await recentFoundReports(url,env)}catch(e){return json({ok:false,error:String(e&&e.message||e)},500)}}
