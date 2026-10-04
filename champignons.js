@@ -1169,17 +1169,27 @@ async function showMushroomAlert(profile,weather,found){
   img.removeAttribute('src');img.dataset.loaded='0';img.dataset.wiki=profile.scientific;img.alt='Vraie photo de '+profile.name;await wikiMushroomPhoto(img);
   box.classList.remove('hidden');box.setAttribute('aria-hidden','false')
 }
+function mushroomAlertCooldownMs(kind){
+  if(kind==='rain_today'||kind==='rain_tomorrow')return 24*60*60*1000;
+  if(kind==='ending')return 7*24*60*60*1000;
+  return 72*60*60*1000
+}
+function mushroomAlertStorageKey(kind,species){
+  return 'mush_alert_last_v2_'+kind+'_'+normSpecies(species)
+}
 async function checkMushroomOpportunity(){
   var entry=$('firstEntryGate'),unlock=$('unlockGate');if(entry&&!entry.classList.contains('hidden'))return;if(unlock&&!unlock.classList.contains('hidden'))return;
   var pos=savedUserPosition();if(!pos)return;
   var weather=await loadOfficialMushroomWeather(pos);if(!weather)return;
   var found=await recentFoundNear(pos),profile=chooseAlertProfile(weather,found);if(!profile)return;
-  var kind=weatherAlertKind(profile,weather),key='mush_alert_seen_'+localYmd()+'_'+kind+'_'+normSpecies(profile.name);
-  try{if(sessionStorage.getItem(key)==='1')return;sessionStorage.setItem(key,'1')}catch(_){}
+  var kind=weatherAlertKind(profile,weather),storageKey=mushroomAlertStorageKey(kind,profile.name),now=Date.now(),last=0;
+  try{last=Number(localStorage.getItem(storageKey)||0)}catch(_){}
+  if(Number.isFinite(last)&&last>0&&now-last<mushroomAlertCooldownMs(kind))return;
+  try{localStorage.setItem(storageKey,String(now))}catch(_){}
   await showMushroomAlert(profile,weather,found);
   var si=seasonInfo(profile,new Date()),title=kind==='rain_today'?'🌧️ Pluie aujourd’hui — champignons':kind==='rain_tomorrow'?'🌧️ Pluie demain — champignons':kind==='ending'?'🍄 Bientôt la fin de saison':'🍄 Bon moment à surveiller';
   var body=kind==='rain_today'?'La pluie peut rendre les prochains jours plus favorables pour '+profile.name+'.':kind==='rain_tomorrow'?'De la pluie est prévue demain. Surveillez les jours suivants pour '+profile.name+'.':kind==='ending'?'Environ '+Math.max(0,si.daysLeft)+' jours avant la fin habituelle de la période du '+profile.name+'.':'Conditions météo et saison compatibles avec une pousse possible de '+profile.name+'.';
-  await showChampignonsNotification(title,body,'mushroom-'+kind+'-'+normSpecies(profile.name)+'-'+localYmd())
+  await showChampignonsNotification(title,body,'mushroom-'+kind+'-'+normSpecies(profile.name))
 }
 function renderResults(spots,mode){
   var normalized=(spots||[]).map(applyAdminWoodOverride),input=state.browseSection==='public'?filterPublicWoods(normalized):normalized;
