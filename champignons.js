@@ -876,7 +876,7 @@ function showChatInvite(message){
     proposal.classList.toggle('hidden',!parts.length)
   }
   if(woodBtn){
-    var woodProposal=/^🌲\s*(?:je te propose|proposition de bois|je te propose plutôt)/i.test(text)||/tu viens aux champignons\s*\?/i.test(text)&&/bois/i.test(text);
+    var woodProposal=/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(text)||/tu viens aux champignons\s*\?/i.test(text)&&/bois/i.test(text);
     woodBtn.classList.toggle('hidden',!woodProposal)
   }
   var overlay=$('chatInviteOverlay');
@@ -965,8 +965,8 @@ async function sendChatWood(wood,button){
     await internalShareRequest('send',{recipientId:String(rec.id),recipientName:rec.name,wood:slimWood(wood)});
     var l=chatWoodLabel(wood),where=l.city?' à '+l.city:'';
     var message=rec.mode==='alternative'
-      ?'🌲 Je te propose plutôt le bois « '+l.name+' »'+where+'. Ça te va ?'
-      :'🌲 Je te propose le bois « '+l.name+' »'+where+'. Tu viens aux champignons ?';
+      ?'🌲 Est-ce que tu veux aller dans le bois « '+l.name+' »'+where+' ?'
+      :'🌲 Est-ce que tu veux aller dans le bois « '+l.name+' »'+where+' ?';
     await sendChatMessage(message,rec.id);
     status('chatWoodPickerStatus','✅ Bois envoyé à '+rec.name+'.','ok');
     setTimeout(closeChatWoodPicker,850)
@@ -982,7 +982,7 @@ function renderChatMessages(rows){
   box.innerHTML=rows.map(function(m){
     var mine=Number(m.senderId)===selfId,forMe=Number(m.recipientId||0)===selfId;
     var target=m.recipientName?'<div class="chatTarget">🔔 Pour '+esc(m.recipientName)+'</div>':'';
-    var woodProposal=forMe&&(/^🌲\s*(?:je te propose|proposition de bois|je te propose plutôt)/i.test(clean(m.message||''))||/tu viens aux champignons\s*\?/i.test(clean(m.message||''))&&/bois/i.test(clean(m.message||'')));
+    var woodProposal=forMe&&(/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(clean(m.message||''))||/tu viens aux champignons\s*\?/i.test(clean(m.message||''))&&/bois/i.test(clean(m.message||'')));
     var actions=!mine?(woodProposal
       ?'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">✅ OUI, JE VIENS</button><button type="button" class="chatNoBtn" data-chat-sender="'+Number(m.senderId||0)+'">❌ NON, JE PEUX PAS</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">💬 RÉPONDRE</button><button type="button" class="chatWoodBtn" data-chat-wood-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'" data-chat-message-id="'+Number(m.id||0)+'">🌲 CHOISIR UN AUTRE BOIS</button></div>'
       :'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">OUI 👍</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">RÉPONDRE</button></div>'):'';
