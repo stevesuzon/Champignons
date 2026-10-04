@@ -2133,3 +2133,47 @@
   border-color:#76db91;
   box-shadow:0 0 0 2px rgba(118,219,145,.14);
 }
+
+
+/* V74 — menus déroulants invitation */
+.chatInviteChangePanel{
+  width:min(100%,620px);
+  display:grid;
+  gap:10px;
+  margin-top:2px;
+}
+.chatInviteChangePanel.hidden{display:none!important}
+.chatInviteChangePanel label{
+  display:flex;
+  flex-direction:column;
+  gap:6px;
+  text-align:left;
+}
+.chatInviteChangePanel label>span{
+  font-size:12px;
+  font-weight:1000;
+  color:#dff4e5;
+}
+.chatInviteChangePanel select{
+  width:100%;
+  min-height:50px;
+  padding:0 12px;
+  border:2px solid #4f8060;
+  border-radius:13px;
+  background:#08170e;
+  color:#fff;
+  font-size:16px;
+  font-weight:900;
+}
+.chatInviteChangePanel select option{
+  color:#111;
+  background:#fff;
+}
+.chatInviteChangeSend{
+  min-height:54px;
+  margin:2px 0 0!important;
+  background:#275f36!important;
+  border-color:#73c986!important;
+  font-weight:1000!important;
+}
+.chatInviteChangeStatus{margin:0!important}
