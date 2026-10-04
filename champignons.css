@@ -1779,3 +1779,19 @@
   #chatRecipientSearch{font-size:12px;padding:0 8px}
   .chatHeaderTop .topInstall{padding:0 6px!important;font-size:9px!important}
 }
+
+
+/* V64 — messages chat pleine largeur */
+.homeChatCardTop .chatMessage{
+  width:100%!important;
+  max-width:100%!important;
+  align-self:stretch!important;
+  box-sizing:border-box!important;
+  border-radius:12px!important;
+}
+.homeChatCardTop .chatMessage.mine{
+  width:100%!important;
+  max-width:100%!important;
+  align-self:stretch!important;
+  border-radius:12px!important;
+}
