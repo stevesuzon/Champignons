@@ -731,16 +731,80 @@ async function disableChatPushSubscription(){
 function chatMemberName(m){
   return (clean(m&&m.firstName||m&&m.first_name)+' '+clean(m&&m.lastName||m&&m.last_name)).trim()||clean(m&&m.name)||'Membre Champignons'
 }
+function closeChatRecipientResults(){
+  var box=$('chatRecipientResults');if(box)box.classList.add('hidden')
+}
+function selectChatRecipient(id,name,focusMessage){
+  var select=$('chatRecipientSelect'),search=$('chatRecipientSearch'),n=Number(id||0);
+  if(select){
+    var value=n>0?String(n):'';
+    if(Array.from(select.options).some(function(o){return o.value===value}))select.value=value;
+    else select.value=''
+  }
+  if(search)search.value=n>0?clean(name||'Membre Champignons'):'Tout le monde';
+  closeChatRecipientResults();
+  if(focusMessage){
+    var input=$('chatInput');
+    if(input){
+      input.placeholder=n>0?'Répondre à '+clean(name||'cette personne')+'…':'Écrire un message…';
+      input.focus()
+    }
+  }
+}
+function renderChatRecipientResults(query){
+  var box=$('chatRecipientResults');if(!box)return;
+  var q=normIdentityName(query||''),rows=(state.chatMembers||[]).filter(function(m){
+    return !q||normIdentityName(chatMemberName(m)).indexOf(q)>=0
+  }).slice(0,40);
+  var html='<button type="button" data-chat-recipient-id="" data-chat-recipient-name="Tout le monde"><strong>🌍 Tout le monde</strong><small>Message visible par tous</small></button>';
+  html+=rows.map(function(m){
+    var name=chatMemberName(m);
+    return '<button type="button" data-chat-recipient-id="'+Number(m.id||0)+'" data-chat-recipient-name="'+esc(name)+'"><strong>🔔 '+esc(name)+'</strong><small>Message privé + notification</small></button>'
+  }).join('');
+  box.innerHTML=html;
+  box.classList.remove('hidden');
+  Array.from(box.querySelectorAll('[data-chat-recipient-id]')).forEach(function(b){
+    b.onclick=function(e){
+      e.preventDefault();e.stopPropagation();
+      selectChatRecipient(Number(b.dataset.chatRecipientId||0),b.dataset.chatRecipientName||'',false)
+    }
+  })
+}
+function bindChatRecipientSearch(){
+  var search=$('chatRecipientSearch');if(!search||search.dataset.bound==='1')return;
+  search.dataset.bound='1';
+  search.addEventListener('focus',function(){
+    if(clean(search.value)==='Tout le monde')search.select();
+    renderChatRecipientResults(clean(search.value)==='Tout le monde'?'':search.value)
+  });
+  search.addEventListener('input',function(){renderChatRecipientResults(search.value)});
+  search.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){closeChatRecipientResults();search.blur();return}
+    if(e.key==='Enter'){
+      e.preventDefault();
+      var first=$('chatRecipientResults')&&$('chatRecipientResults').querySelector('[data-chat-recipient-id]');
+      if(first)first.click()
+    }
+  });
+  search.addEventListener('blur',function(){setTimeout(closeChatRecipientResults,180)})
+}
 async function loadChatMembers(){
   var select=$('chatRecipientSelect');if(!select)return;
+  bindChatRecipientSearch();
   try{
     var rows=await fetchAllChampignonsMembers();state.chatMembers=rows;
     var current=String(select.value||'');
-    select.innerHTML='<option value="">Tout le monde — pas d’alerte personnelle</option>'+rows.map(function(m){
-      return '<option value="'+Number(m.id||0)+'">🔔 '+esc(chatMemberName(m))+'</option>'
+    select.innerHTML='<option value="">Tout le monde</option>'+rows.map(function(m){
+      return '<option value="'+Number(m.id||0)+'">'+esc(chatMemberName(m))+'</option>'
     }).join('');
-    if(current&&Array.from(select.options).some(function(o){return o.value===current}))select.value=current
-  }catch(_){}
+    if(current&&Array.from(select.options).some(function(o){return o.value===current})){
+      select.value=current;
+      var hit=rows.find(function(m){return String(Number(m.id||0))===current});
+      if(hit)selectChatRecipient(hit.id,chatMemberName(hit),false)
+    }else{
+      selectChatRecipient(0,'Tout le monde',false)
+    }
+  }catch(_){selectChatRecipient(0,'Tout le monde',false)}
 }
 function chatTimeLabel(ms){
   var d=new Date(Number(ms)||Date.now()),now=new Date();
@@ -755,14 +819,20 @@ function renderChatMessages(rows){
     var mine=Number(m.senderId)===selfId,forMe=Number(m.recipientId||0)===selfId;
     var target=m.recipientName?'<div class="chatTarget">🔔 Pour '+esc(m.recipientName)+'</div>':'';
     var actions=!mine?'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">OUI 👍</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">RÉPONDRE</button></div>':'';
-    return '<div class="chatMessage'+(mine?' mine':'')+(forMe?' forMe':'')+'"><div class="chatMessageHead"><b>'+esc(m.senderName||'Membre Champignons')+'</b><time>'+esc(chatTimeLabel(m.createdAt))+'</time></div>'+target+'<div class="chatMessageText">'+esc(m.message||'')+'</div>'+actions+'</div>'
+    return '<div class="chatMessage'+(mine?' mine':'')+(forMe?' forMe':'')+'" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'"><div class="chatMessageHead"><b>'+esc(m.senderName||'Membre Champignons')+'</b><time>'+esc(chatTimeLabel(m.createdAt))+'</time></div>'+target+'<div class="chatMessageText">'+esc(m.message||'')+'</div>'+actions+'</div>'
   }).join('');
-  Array.from(box.querySelectorAll('.chatReplyBtn')).forEach(function(b){b.onclick=function(){
-    var id=String(Number(b.dataset.chatSender||0)),sel=$('chatRecipientSelect'),inp=$('chatInput');
-    if(sel&&Array.from(sel.options).some(function(o){return o.value===id}))sel.value=id;
-    if(inp){inp.placeholder='Répondre à '+clean(b.dataset.chatName||'cette personne')+'…';inp.focus()}
+  Array.from(box.querySelectorAll('.chatMessage')).forEach(function(row){
+    row.onclick=function(e){
+      if(e.target.closest('button'))return;
+      var id=Number(row.dataset.chatSender||0);
+      if(id&&id!==selfId)selectChatRecipient(id,row.dataset.chatName||'',true)
+    }
+  });
+  Array.from(box.querySelectorAll('.chatReplyBtn')).forEach(function(b){b.onclick=function(e){
+    e.stopPropagation();
+    selectChatRecipient(Number(b.dataset.chatSender||0),b.dataset.chatName||'',true)
   }});
-  Array.from(box.querySelectorAll('.chatYesBtn')).forEach(function(b){b.onclick=function(){sendChatMessage('Oui 👍',Number(b.dataset.chatSender||0),b)}});
+  Array.from(box.querySelectorAll('.chatYesBtn')).forEach(function(b){b.onclick=function(e){e.stopPropagation();sendChatMessage('Oui 👍',Number(b.dataset.chatSender||0),b)}});
   box.scrollTop=box.scrollHeight
 }
 async function loadChat(silent){
@@ -806,9 +876,11 @@ async function sendChat(){
   if(!recipientId)recipientId=detectChatRecipient(message);
   if(button)button.disabled=true;
   await sendChatMessage(message,recipientId,button);
-  if(input)input.value='';
+  if(input){input.value='';input.placeholder='Écrire un message…'}
+  selectChatRecipient(0,'Tout le monde',false)
 }
 function startChat(){
+  bindChatRecipientSearch();selectChatRecipient(0,'Tout le monde',false);
   loadChatMembers();loadChat(false);
   if(notificationPermissionState()==='granted'&&notificationsWanted())ensureChatPushSubscription();
   if(state.chatTimer)clearInterval(state.chatTimer);
