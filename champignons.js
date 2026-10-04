@@ -13,6 +13,7 @@ var ONBOARDING_KEY='champignons_onboarding_v7';
 var CAR_POSITION_KEY='champignons_car_position_v1';
 var USER_POSITION_KEY='champignons_user_position_v1';
 var NOTIFICATION_PREF_KEY='champignons_notifications_enabled_v1';
+var CHAT_INVITE_SEEN_PREFIX='champignons_chat_invite_seen_v1_';
 function cachedTrialUntil(){var ms=0;try{ms=Number(localStorage.getItem(FREE_UNTIL_CACHE_KEY)||0)}catch(_){}if(temporaryFreeActive())ms=Math.max(Number.isFinite(ms)?ms:0,TEMP_FREE_UNTIL_MS);return Number.isFinite(ms)&&ms>0?ms:0}
 async function syncTrialUntil(){var cached=cachedTrialUntil();try{var r=await fetch(API_BASE+'/api/contest/status',{method:'POST',headers:{'content-type':'application/json'},body:JSON.stringify({deviceId:deviceId()}),cache:'no-store'}),j=await r.json();var ms=Number(j&&j.appFreeUntil||0);if(temporaryFreeActive())ms=Math.max(Number.isFinite(ms)?ms:0,TEMP_FREE_UNTIL_MS);if(r.ok&&ms>0){try{localStorage.setItem(FREE_UNTIL_CACHE_KEY,String(ms))}catch(_){}return ms}}catch(_){}return cached}
 function clean(v){return String(v||'').replace(/\s+/g,' ').trim()}
@@ -811,6 +812,102 @@ function chatTimeLabel(ms){
   if(d.toDateString()===now.toDateString())return d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'});
   return d.toLocaleDateString('fr-FR',{day:'2-digit',month:'2-digit'})+' '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
 }
+function chatInviteSeenKey(){
+  var x=identity()||{},email=clean(x.email||'').toLowerCase().replace(/[^a-z0-9@._-]/g,'_');
+  return CHAT_INVITE_SEEN_PREFIX+(email||'device_'+deviceId())
+}
+function chatInviteLastSeen(){
+  try{return Number(localStorage.getItem(chatInviteSeenKey())||0)||0}catch(_){return 0}
+}
+function markChatInviteSeen(message){
+  var id=Number(message&&message.id||0);if(!id)return;
+  try{localStorage.setItem(chatInviteSeenKey(),String(Math.max(id,chatInviteLastSeen())))}catch(_){}
+}
+function chatProposalInfo(message){
+  var raw=clean(message||''),norm=raw.normalize('NFD').replace(/[\u0300-\u036f]/g,'').toLowerCase().replace(/’/g,"'");
+  var day='',date='';
+  var dm=raw.match(/\b([0-3]?\d)[\/.-]([01]?\d)(?:[\/.-](20\d{2}))?\b/);
+  if(dm){
+    var dd=String(Number(dm[1])).padStart(2,'0'),mm=String(Number(dm[2])).padStart(2,'0');
+    date=dd+'/'+mm+(dm[3]?'/'+dm[3]:'')
+  }else{
+    var words=["apres-demain","apres demain","aujourd'hui","demain","lundi","mardi","mercredi","jeudi","vendredi","samedi","dimanche"];
+    for(var i=0;i<words.length;i++){
+      if(norm.indexOf(words[i])>=0){day=words[i];break}
+    }
+    if(day){
+      day=day.replace("apres-demain","après-demain").replace("apres demain","après-demain").replace("aujourd'hui","aujourd’hui");
+      day=day.charAt(0).toUpperCase()+day.slice(1)
+    }
+  }
+  var tm=raw.match(/\b(?:à\s+|a\s+|vers\s+)?([01]?\d|2[0-3])\s*(?:h|:)\s*([0-5]\d)?\b/i),time='';
+  if(tm){
+    var hh=String(Number(tm[1])).padStart(2,'0'),min=tm[2]?String(tm[2]).padStart(2,'0'):'00';
+    time=hh+' h '+min
+  }
+  return{day:date||day,time:time}
+}
+function chatInviteReceivedLabel(ms){
+  var d=new Date(Number(ms)||Date.now());
+  return d.toLocaleDateString('fr-FR',{weekday:'long',day:'numeric',month:'long'})+' à '+d.toLocaleTimeString('fr-FR',{hour:'2-digit',minute:'2-digit'})
+}
+function closeChatInvite(markSeen){
+  var m=state.chatInvite;if(markSeen&&m)markChatInviteSeen(m);
+  state.chatInvite=null;
+  var overlay=$('chatInviteOverlay');if(overlay){overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true')}
+}
+function showChatInvite(message){
+  if(!message||state.chatInvite)return;
+  state.chatInvite=message;
+  var sender=clean(message.senderName||'Membre Champignons'),text=clean(message.message||''),info=chatProposalInfo(text);
+  var title=$('chatInviteTitle'),received=$('chatInviteReceived'),body=$('chatInviteMessage'),proposal=$('chatInviteProposal');
+  if(title){
+    var looksInvite=/champignon|cueillette|bois|venir|viens|aller/i.test(text);
+    title.textContent=looksInvite?sender+' vous demande si vous allez aux champignons':sender+' vous a envoyé un message'
+  }
+  if(received)received.textContent='Message reçu '+chatInviteReceivedLabel(message.createdAt);
+  if(body)body.textContent=text;
+  if(proposal){
+    var parts=[];
+    if(info.day)parts.push('<span><b>📅 JOUR</b>'+esc(info.day)+'</span>');
+    if(info.time)parts.push('<span><b>🕒 HEURE</b>'+esc(info.time)+'</span>');
+    proposal.innerHTML=parts.join('');
+    proposal.classList.toggle('hidden',!parts.length)
+  }
+  var overlay=$('chatInviteOverlay');
+  if(overlay){overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false')}
+}
+function maybeShowChatInvite(rows){
+  if(state.chatInvite||!Array.isArray(rows)||!Number(state.chatSelfId||0))return;
+  var selfId=Number(state.chatSelfId),seen=chatInviteLastSeen(),incoming=rows.filter(function(m){
+    return Number(m.recipientId||0)===selfId&&Number(m.senderId||0)!==selfId&&Number(m.id||0)>seen
+  });
+  if(!incoming.length)return;
+  var latest=incoming[incoming.length-1],age=Date.now()-Number(latest.createdAt||0);
+  if(age>7*86400000){markChatInviteSeen(latest);return}
+  showChatInvite(latest)
+}
+function chatInviteReplyText(yes,message){
+  var info=chatProposalInfo(message&&message.message||''),when='';
+  if(info.day&&info.time)when=' '+info.day+' à '+info.time;
+  else if(info.day)when=' '+info.day;
+  else if(info.time)when=' à '+info.time;
+  return yes?'Oui 👍 je viens aux champignons'+when+'.':'Non 👎 je ne pourrai pas venir'+when+'.'
+}
+async function answerChatInvite(yes,button){
+  var m=state.chatInvite;if(!m)return;
+  var buttons=document.querySelectorAll('#chatInviteOverlay button');Array.from(buttons).forEach(function(b){b.disabled=true});
+  var ok=await sendChatMessage(chatInviteReplyText(yes,m),Number(m.senderId||0),button);
+  Array.from(buttons).forEach(function(b){b.disabled=false});
+  if(ok)closeChatInvite(true)
+}
+function replyChatInvite(){
+  var m=state.chatInvite;if(!m)return;
+  markChatInviteSeen(m);
+  closeChatInvite(false);
+  selectChatRecipient(Number(m.senderId||0),m.senderName||'',true);
+  var c=$('homeChatCard');if(c)c.scrollIntoView({behavior:'smooth',block:'start'})
+}
 function renderChatMessages(rows){
   var box=$('chatMessages');if(!box)return;
   if(!rows.length){box.innerHTML='<div class="chatEmpty">Aucun message pour le moment. Écrivez le premier message 🍄</div>';return}
@@ -846,6 +943,7 @@ async function loadChat(silent){
     var rows=j.messages,last=rows.length?Number(rows[rows.length-1].id||0):0;
     if(last>state.chatLastId)state.chatLastId=last;
     renderChatMessages(rows);
+    maybeShowChatInvite(rows);
     if(!silent)status('chatStatus','Chat à jour.','ok')
   }catch(_){if(!silent)status('chatStatus','Impossible de charger le chat pour le moment.','bad')}
 }
@@ -865,8 +963,9 @@ async function sendChatMessage(message,recipientId,button){
     }),j=await r.json().catch(function(){return{}});
     if(!r.ok||!j||!j.ok)throw new Error('send');
     status('chatStatus',Number(recipientId)>0?'✅ Message envoyé et notification demandée.':'✅ Message envoyé.','ok');
-    await loadChat(true)
-  }catch(_){status('chatStatus','❌ Impossible d’envoyer le message.','bad')}
+    await loadChat(true);
+    return true
+  }catch(_){status('chatStatus','❌ Impossible d’envoyer le message.','bad');return false}
   finally{if(button)button.disabled=false}
 }
 async function sendChat(){
@@ -1605,6 +1704,10 @@ async function loadMembers(){
 function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref();refreshSavedPositionPanel();refreshNotificationSettings()}
 function closeMushSettings(){var x=$('mushSettings');x.classList.add('hidden');x.setAttribute('aria-hidden','true')}
 if($('chatSendBtn'))$('chatSendBtn').onclick=sendChat;
+if($('chatInviteYesBtn'))$('chatInviteYesBtn').onclick=function(){answerChatInvite(true,this)};
+if($('chatInviteNoBtn'))$('chatInviteNoBtn').onclick=function(){answerChatInvite(false,this)};
+if($('chatInviteReplyBtn'))$('chatInviteReplyBtn').onclick=replyChatInvite;
+if($('chatInviteCloseBtn'))$('chatInviteCloseBtn').onclick=function(){closeChatInvite(true)};
 if($('chatInput'))$('chatInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat()}});
 if($('mushSettingsBtn'))$('mushSettingsBtn').onclick=openMushSettings;
 if($('closeMushSettings'))$('closeMushSettings').onclick=closeMushSettings;
