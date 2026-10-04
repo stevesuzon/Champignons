@@ -862,16 +862,61 @@ function closeChatInvite(markSeen){
   state.chatInvite=null;
   var overlay=$('chatInviteOverlay');if(overlay){overlay.classList.add('hidden');overlay.setAttribute('aria-hidden','true')}
 }
+function fillChatInviteChangeMenus(){
+  var woodSelect=$('chatInviteWoodSelect'),timeSelect=$('chatInviteTimeSelect');
+  if(woodSelect){
+    var rows=mergeMyWoods();state.chatInviteChangeWoods=rows;
+    woodSelect.innerHTML='<option value="">Garder le bois proposé</option>'+rows.map(function(s,i){
+      var l=chatWoodLabel(s),label=l.name+(l.city?' — '+l.city:'');
+      return '<option value="'+i+'">'+esc(label)+'</option>'
+    }).join('')
+  }
+  if(timeSelect){
+    var html='<option value="">Garder l’horaire proposé</option><option value="none">Sans horaire</option>';
+    for(var h=3;h<=20;h++){
+      html+='<option value="vers '+h+' h">vers '+h+' h</option>';
+      if(h<20)html+='<option value="vers '+h+' ou '+(h+1)+' h">vers '+h+' ou '+(h+1)+' h</option>'
+    }
+    timeSelect.innerHTML=html
+  }
+}
+async function submitChatInviteChange(){
+  var m=state.chatInvite;if(!m)return;
+  var woodSelect=$('chatInviteWoodSelect'),timeSelect=$('chatInviteTimeSelect'),button=$('chatInviteChangeSendBtn'),
+      woodIndex=woodSelect&&woodSelect.value!==''?Number(woodSelect.value):null,
+      timeValue=clean(timeSelect&&timeSelect.value||'');
+  if(woodIndex===null&&!timeValue){status('chatInviteChangeStatus','Choisissez un autre bois ou un autre horaire.','bad');return}
+  if(button)button.disabled=true;
+  try{
+    var recipientId=Number(m.senderId||0),recipientName=clean(m.senderName||'Membre Champignons'),message='';
+    if(woodIndex!==null){
+      var wood=(state.chatInviteChangeWoods||[])[woodIndex];
+      if(!wood)throw new Error('BOIS_INVALIDE');
+      await internalShareRequest('send',{recipientId:String(recipientId),recipientName:recipientName,wood:slimWood(wood)});
+      var l=chatWoodLabel(wood),where=l.city?' à '+l.city:'',when=timeValue&&timeValue!=='none'?' '+timeValue:'';
+      message='🌲 Est-ce que tu veux aller dans le bois « '+l.name+' »'+where+when+' ?'
+    }else{
+      message=timeValue==='none'
+        ?'🕒 Je garde le bois proposé, mais sans horaire précis. Ça te va ?'
+        :'🕒 Je garde le bois proposé, mais je préfère '+timeValue+'. Ça te va ?'
+    }
+    var ok=await sendChatMessage(message,recipientId,button);
+    if(ok){markChatInviteSeen(m);closeChatInvite(false);selectChatRecipient(0,'Tout le monde',false)}
+  }catch(_){
+    status('chatInviteChangeStatus','❌ Impossible d’envoyer cette proposition.','bad')
+  }finally{if(button)button.disabled=false}
+}
 function showChatInvite(message){
   if(!message||state.chatInvite)return;
   state.chatInvite=message;
   var sender=clean(message.senderName||'Membre Champignons'),text=clean(message.message||''),info=chatProposalInfo(text);
-  var title=$('chatInviteTitle'),received=$('chatInviteReceived'),body=$('chatInviteMessage'),proposal=$('chatInviteProposal'),woodBtn=$('chatInviteWoodBtn'),
+  var title=$('chatInviteTitle'),received=$('chatInviteReceived'),body=$('chatInviteMessage'),proposal=$('chatInviteProposal'),changePanel=$('chatInviteChangePanel'),
       yesBtn=$('chatInviteYesBtn'),noBtn=$('chatInviteNoBtn'),replyBtn=$('chatInviteReplyBtn'),help=document.querySelector('#chatInviteOverlay .chatInviteHelp'),
       isNo=/^non\b/i.test(text)&&/(peux pas|ne peux pas|pourrai pas|ne pourrai pas|pas venir)/i.test(text),
       isYes=/^oui\b/i.test(text)&&/(je viens|viens aux champignons)/i.test(text),
       woodProposal=/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(text)||/tu viens aux champignons\s*\?/i.test(text)&&/bois/i.test(text),
-      looksInvite=woodProposal||(/champignon|cueillette|bois|venir|viens|aller/i.test(text)&&!isNo&&!isYes);
+      timeProposal=/^🕒\s*/.test(text)&&/bois proposé/i.test(text),
+      looksInvite=woodProposal||timeProposal||(/champignon|cueillette|bois|venir|viens|aller/i.test(text)&&!isNo&&!isYes);
   if(title){
     if(isNo)title.textContent=sender+' ne peut pas venir';
     else if(isYes)title.textContent=sender+' vient aux champignons';
@@ -890,7 +935,8 @@ function showChatInvite(message){
     proposal.innerHTML=parts.join('');
     proposal.classList.toggle('hidden',!parts.length)
   }
-  if(woodBtn)woodBtn.classList.toggle('hidden',!woodProposal);
+  if(changePanel){changePanel.classList.toggle('hidden',!looksInvite);if(looksInvite)fillChatInviteChangeMenus()}
+  status('chatInviteChangeStatus','');
   var overlay=$('chatInviteOverlay');
   if(overlay){overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false')}
 }
@@ -1002,7 +1048,7 @@ function renderChatMessages(rows){
   box.innerHTML=rows.map(function(m){
     var mine=Number(m.senderId)===selfId,forMe=Number(m.recipientId||0)===selfId;
     var target=m.recipientName?'<div class="chatTarget">🔔 Pour '+esc(m.recipientName)+'</div>':'';
-    var msgText=clean(m.message||''),woodProposal=forMe&&(/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(msgText)||/tu viens aux champignons\s*\?/i.test(msgText)&&/bois/i.test(msgText)),
+    var msgText=clean(m.message||''),woodProposal=forMe&&((/^🌲\s*(?:est-ce que tu veux(?: plutôt)? aller dans le bois|je te propose|proposition de bois|je te propose plutôt)/i.test(msgText)||/tu viens aux champignons\s*\?/i.test(msgText)&&/bois/i.test(msgText))||(/^🕒\s*/.test(msgText)&&/bois proposé/i.test(msgText))),
         answerOnly=forMe&&((/^non\b/i.test(msgText)&&/(peux pas|ne peux pas|pourrai pas|ne pourrai pas|pas venir)/i.test(msgText))||(/^oui\b/i.test(msgText)&&/(je viens|viens aux champignons)/i.test(msgText)));
     var actions=!mine?(woodProposal
       ?'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">✅ OUI, JE VIENS</button><button type="button" class="chatNoBtn" data-chat-sender="'+Number(m.senderId||0)+'">❌ NON, JE PEUX PAS</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">💬 RÉPONDRE</button><button type="button" class="chatWoodBtn" data-chat-wood-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'" data-chat-message-id="'+Number(m.id||0)+'">🌲 CHOISIR UN AUTRE BOIS</button></div>'
@@ -1804,7 +1850,7 @@ if($('chatWoodSendBtn'))$('chatWoodSendBtn').onclick=openChatWoodPickerFromCompo
 if($('chatInviteYesBtn'))$('chatInviteYesBtn').onclick=function(){answerChatInvite(true,this)};
 if($('chatInviteNoBtn'))$('chatInviteNoBtn').onclick=function(){answerChatInvite(false,this)};
 if($('chatInviteReplyBtn'))$('chatInviteReplyBtn').onclick=replyChatInvite;
-if($('chatInviteWoodBtn'))$('chatInviteWoodBtn').onclick=openChatWoodPicker;
+if($('chatInviteChangeSendBtn'))$('chatInviteChangeSendBtn').onclick=submitChatInviteChange;
 if($('chatInviteCloseBtn'))$('chatInviteCloseBtn').onclick=function(){closeChatInvite(true)};
 if($('chatWoodPickerCloseBtn'))$('chatWoodPickerCloseBtn').onclick=closeChatWoodPicker;
 if($('chatInput'))$('chatInput').addEventListener('keydown',function(e){if(e.key==='Enter'&&!e.shiftKey){e.preventDefault();sendChat()}});
