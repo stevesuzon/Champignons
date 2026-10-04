@@ -1801,3 +1801,149 @@
   align-self:stretch!important;
   border-radius:12px!important;
 }
+
+
+/* V67 — invitation chat plein écran */
+.chatInviteOverlay{
+  position:fixed;
+  inset:0;
+  z-index:9800;
+  display:flex;
+  align-items:stretch;
+  justify-content:stretch;
+  width:100vw;
+  height:100dvh;
+  min-height:100dvh;
+  padding:0;
+  background:#06120a;
+}
+.chatInviteOverlay.hidden{display:none!important}
+.chatInviteCard{
+  position:relative;
+  width:100%;
+  min-height:100dvh;
+  box-sizing:border-box;
+  display:flex;
+  flex-direction:column;
+  align-items:center;
+  justify-content:center;
+  gap:14px;
+  padding:max(28px,env(safe-area-inset-top)) 18px max(24px,env(safe-area-inset-bottom));
+  text-align:center;
+  background:
+    radial-gradient(circle at 50% 12%,rgba(65,150,84,.34),transparent 34%),
+    linear-gradient(180deg,#173a22 0%,#0b2113 52%,#06120a 100%);
+  color:#fff;
+}
+.chatInviteClose{
+  position:absolute;
+  top:max(12px,env(safe-area-inset-top));
+  right:14px;
+  width:44px;
+  height:44px;
+  border:1px solid #668272;
+  border-radius:50%;
+  background:#102719;
+  color:#fff;
+  font-size:29px;
+  line-height:1;
+  font-weight:700;
+}
+.chatInviteBadge{
+  padding:8px 13px;
+  border:1px solid #70d78b;
+  border-radius:999px;
+  background:#174b29;
+  color:#e8ffef;
+  font-size:13px;
+  font-weight:1000;
+  letter-spacing:.04em;
+}
+.chatInviteCard h2{
+  max-width:620px;
+  margin:2px 0 0;
+  font-size:clamp(27px,7vw,40px);
+  line-height:1.08;
+}
+.chatInviteReceived{
+  color:#bcd0c2;
+  font-size:14px;
+  font-weight:800;
+}
+.chatInviteProposal{
+  width:min(100%,620px);
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+.chatInviteProposal.hidden{display:none!important}
+.chatInviteProposal span{
+  display:flex;
+  flex-direction:column;
+  gap:4px;
+  padding:13px 10px;
+  border:2px solid #5db877;
+  border-radius:16px;
+  background:#123520;
+  font-size:20px;
+  font-weight:1000;
+}
+.chatInviteProposal span b{
+  color:#b9e7c6;
+  font-size:11px;
+  letter-spacing:.08em;
+}
+.chatInviteMessage{
+  width:min(100%,620px);
+  box-sizing:border-box;
+  padding:18px;
+  border:1px solid #416d50;
+  border-radius:18px;
+  background:#08170e;
+  font-size:clamp(20px,5.5vw,28px);
+  line-height:1.28;
+  font-weight:900;
+  white-space:pre-wrap;
+  word-break:break-word;
+}
+.chatInviteHelp{
+  max-width:600px;
+  margin:0;
+  color:#c8d8cd;
+  font-size:13px;
+  line-height:1.35;
+}
+.chatInviteActions{
+  width:min(100%,620px);
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.chatInviteActions .btn{
+  min-height:62px;
+  margin:0!important;
+  border-radius:16px;
+  font-size:16px;
+  font-weight:1000;
+}
+.chatInviteYes{
+  background:#19813b!important;
+  border-color:#70df8e!important;
+}
+.chatInviteNo{
+  background:#7d2522!important;
+  border-color:#d86b64!important;
+}
+.chatInviteReply{
+  grid-column:1/-1;
+  background:#173d68!important;
+  border-color:#6aa8df!important;
+}
+@media(max-width:420px){
+  .chatInviteCard{gap:11px;padding-left:14px;padding-right:14px}
+  .chatInviteProposal span{font-size:17px;padding:11px 8px}
+  .chatInviteActions .btn{min-height:58px;font-size:14px}
+}
+@supports not (height:100dvh){
+  .chatInviteOverlay,.chatInviteCard{height:100vh;min-height:100vh}
+}
