@@ -743,6 +743,7 @@ function selectChatRecipient(id,name,focusMessage){
     else select.value=''
   }
   if(search)search.value=n>0?clean(name||'Membre Champignons'):'Tout le monde';
+  var woodSend=$('chatWoodSendBtn');if(woodSend)woodSend.classList.toggle('hidden',!(n>0));
   closeChatRecipientResults();
   if(focusMessage){
     var input=$('chatInput');
@@ -875,8 +876,8 @@ function showChatInvite(message){
     proposal.classList.toggle('hidden',!parts.length)
   }
   if(woodBtn){
-    var asksWood=/dans quel bois|quel bois|ou on va|où on va/i.test(text)&&/oui|je viens|d'accord|ok/i.test(text);
-    woodBtn.classList.toggle('hidden',!asksWood)
+    var woodProposal=/^🌲\s*(?:je te propose|proposition de bois|je te propose plutôt)/i.test(text)||/tu viens aux champignons\s*\?/i.test(text)&&/bois/i.test(text);
+    woodBtn.classList.toggle('hidden',!woodProposal)
   }
   var overlay=$('chatInviteOverlay');
   if(overlay){overlay.classList.remove('hidden');overlay.setAttribute('aria-hidden','false')}
@@ -896,7 +897,7 @@ function chatInviteReplyText(yes,message){
   if(info.day&&info.time)when=' '+info.day+' à '+info.time;
   else if(info.day)when=' '+info.day;
   else if(info.time)when=' à '+info.time;
-  return yes?'Oui 👍 je viens aux champignons'+when+'. Dans quel bois tu veux qu’on aille ?':'Non 👎 je ne pourrai pas venir'+when+'.'
+  return yes?'Oui 👍 je viens aux champignons'+when+'.':'Non 👎 je ne pourrai pas venir'+when+'.'
 }
 async function answerChatInvite(yes,button){
   var m=state.chatInvite;if(!m)return;
@@ -922,30 +923,39 @@ function chatWoodLabel(s){
   var name=clean(s&&s.woodName||'Bois'),city=clean(s&&s.city||s&&s.address||''),species=clean(s&&s.species||'');
   return {name:name,city:city,species:species}
 }
-function openChatWoodPickerFromMessage(message){
-  if(!message)return;
-  state.chatWoodRecipient={id:Number(message.senderId||0),name:clean(message.senderName||'Membre Champignons')};
-  if(!state.chatWoodRecipient.id)return;
-  markChatInviteSeen(message);
+function openChatWoodPickerForRecipient(id,name,mode,message){
+  var recipientId=Number(id||0);if(!recipientId)return;
+  state.chatWoodRecipient={id:recipientId,name:clean(name||'Membre Champignons'),mode:mode==='alternative'?'alternative':'proposal'};
+  if(message)markChatInviteSeen(message);
   closeChatInvite(false);
   var modal=$('chatWoodPickerModal'),title=$('chatWoodPickerTitle'),list=$('chatWoodPickerList');
-  if(title)title.textContent='🌲 Envoyer un bois à '+state.chatWoodRecipient.name;
+  if(title)title.textContent=(state.chatWoodRecipient.mode==='alternative'?'🌲 Choisir un autre bois pour ':'🌲 Envoyer un bois à ')+state.chatWoodRecipient.name;
   var rows=mergeMyWoods();
   if(list){
     if(!rows.length)list.innerHTML='<div class="chatWoodEmpty">Vous n’avez encore aucun bois dans « Mes bois ».</div>';
     else list.innerHTML=rows.map(function(s,i){
       var l=chatWoodLabel(s),where=l.city?'<small>📍 '+esc(l.city)+'</small>':'',sp=l.species?'<small>🍄 '+esc(l.species)+'</small>':'';
-      return '<button type="button" class="chatWoodChoice" data-chat-wood-index="'+i+'"><strong>🌲 '+esc(l.name)+'</strong>'+where+sp+'<em>ENVOYER ›</em></button>'
+      return '<button type="button" class="chatWoodChoice" data-chat-wood-index="'+i+'"><strong>🌲 '+esc(l.name)+'</strong>'+where+sp+'<em>CHOISIR ›</em></button>'
     }).join('');
     Array.from(list.querySelectorAll('[data-chat-wood-index]')).forEach(function(b){
       b.onclick=function(){sendChatWood(rows[Number(b.dataset.chatWoodIndex||0)],b)}
     })
   }
-  status('chatWoodPickerStatus',rows.length?'Choisissez le bois à lui envoyer.':'Ajoutez ou enregistrez d’abord un bois.',rows.length?'ok':'bad');
+  status('chatWoodPickerStatus',rows.length?'Choisissez le bois à envoyer.':'Ajoutez ou enregistrez d’abord un bois.',rows.length?'ok':'bad');
   if(modal){modal.classList.remove('hidden');modal.setAttribute('aria-hidden','false')}
+}
+function openChatWoodPickerFromMessage(message){
+  if(!message)return;
+  openChatWoodPickerForRecipient(Number(message.senderId||0),message.senderName||'', 'alternative',message)
 }
 function openChatWoodPicker(){
   if(state.chatInvite)openChatWoodPickerFromMessage(state.chatInvite)
+}
+function openChatWoodPickerFromComposer(){
+  var sel=$('chatRecipientSelect'),id=Number(sel&&sel.value||0);
+  if(!id){status('chatStatus','Choisissez d’abord une personne dans « À : ».','bad');return}
+  var hit=(state.chatMembers||[]).find(function(m){return Number(m.id||0)===id});
+  openChatWoodPickerForRecipient(id,hit?chatMemberName(hit):clean($('chatRecipientSearch')&&$('chatRecipientSearch').value||'Membre Champignons'),'proposal',null)
 }
 async function sendChatWood(wood,button){
   var rec=state.chatWoodRecipient;if(!wood||!rec||!rec.id)return;
@@ -953,8 +963,11 @@ async function sendChatWood(wood,button){
   status('chatWoodPickerStatus','Envoi du bois à '+rec.name+'…');
   try{
     await internalShareRequest('send',{recipientId:String(rec.id),recipientName:rec.name,wood:slimWood(wood)});
-    var l=chatWoodLabel(wood);
-    await sendChatMessage('🌲 Je t’ai envoyé le bois « '+l.name+' »'+(l.city?' à '+l.city:'')+'. Tu le retrouveras dans Mes bois.',rec.id);
+    var l=chatWoodLabel(wood),where=l.city?' à '+l.city:'';
+    var message=rec.mode==='alternative'
+      ?'🌲 Je te propose plutôt le bois « '+l.name+' »'+where+'. Ça te va ?'
+      :'🌲 Je te propose le bois « '+l.name+' »'+where+'. Tu viens aux champignons ?';
+    await sendChatMessage(message,rec.id);
     status('chatWoodPickerStatus','✅ Bois envoyé à '+rec.name+'.','ok');
     setTimeout(closeChatWoodPicker,850)
   }catch(_){
@@ -969,9 +982,9 @@ function renderChatMessages(rows){
   box.innerHTML=rows.map(function(m){
     var mine=Number(m.senderId)===selfId,forMe=Number(m.recipientId||0)===selfId;
     var target=m.recipientName?'<div class="chatTarget">🔔 Pour '+esc(m.recipientName)+'</div>':'';
-    var asksWood=forMe&&/dans quel bois|quel bois|ou on va|où on va/i.test(clean(m.message||''))&&/oui|je viens|d'accord|ok/i.test(clean(m.message||''));
-    var actions=!mine?(asksWood
-      ?'<div class="chatActions"><button type="button" class="chatWoodBtn" data-chat-wood-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'" data-chat-message-id="'+Number(m.id||0)+'">🌲 ENVOYER LE BOIS</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">RÉPONDRE</button></div>'
+    var woodProposal=forMe&&(/^🌲\s*(?:je te propose|proposition de bois|je te propose plutôt)/i.test(clean(m.message||''))||/tu viens aux champignons\s*\?/i.test(clean(m.message||''))&&/bois/i.test(clean(m.message||'')));
+    var actions=!mine?(woodProposal
+      ?'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">✅ OUI, JE VIENS</button><button type="button" class="chatNoBtn" data-chat-sender="'+Number(m.senderId||0)+'">❌ NON, JE PEUX PAS</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">💬 RÉPONDRE</button><button type="button" class="chatWoodBtn" data-chat-wood-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'" data-chat-message-id="'+Number(m.id||0)+'">🌲 CHOISIR UN AUTRE BOIS</button></div>'
       :'<div class="chatActions"><button type="button" class="chatYesBtn" data-chat-sender="'+Number(m.senderId||0)+'">OUI 👍</button><button type="button" class="chatReplyBtn" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'">RÉPONDRE</button></div>'):'';
     return '<div class="chatMessage'+(mine?' mine':'')+(forMe?' forMe':'')+'" data-chat-sender="'+Number(m.senderId||0)+'" data-chat-name="'+esc(m.senderName||'')+'"><div class="chatMessageHead"><b>'+esc(m.senderName||'Membre Champignons')+'</b><time>'+esc(chatTimeLabel(m.createdAt))+'</time></div>'+target+'<div class="chatMessageText">'+esc(m.message||'')+'</div>'+actions+'</div>'
   }).join('');
@@ -986,7 +999,8 @@ function renderChatMessages(rows){
     e.stopPropagation();
     selectChatRecipient(Number(b.dataset.chatSender||0),b.dataset.chatName||'',true)
   }});
-  Array.from(box.querySelectorAll('.chatYesBtn')).forEach(function(b){b.onclick=function(e){e.stopPropagation();sendChatMessage('Oui 👍',Number(b.dataset.chatSender||0),b)}});
+  Array.from(box.querySelectorAll('.chatYesBtn')).forEach(function(b){b.onclick=function(e){e.stopPropagation();sendChatMessage('Oui 👍 je viens.',Number(b.dataset.chatSender||0),b)}});
+  Array.from(box.querySelectorAll('.chatNoBtn')).forEach(function(b){b.onclick=function(e){e.stopPropagation();sendChatMessage('Non 👎 je ne peux pas venir.',Number(b.dataset.chatSender||0),b)}});
   Array.from(box.querySelectorAll('.chatWoodBtn')).forEach(function(b){b.onclick=function(e){
     e.stopPropagation();
     openChatWoodPickerFromMessage({id:Number(b.dataset.chatMessageId||0),senderId:Number(b.dataset.chatWoodSender||0),senderName:b.dataset.chatName||'',message:'Oui, dans quel bois ?'})
@@ -1765,6 +1779,7 @@ async function loadMembers(){
 function openMushSettings(){var x=$('mushSettings');x.classList.remove('hidden');x.setAttribute('aria-hidden','false');closeAllSettingsPanels();refreshGpsPref();refreshSavedPositionPanel();refreshNotificationSettings()}
 function closeMushSettings(){var x=$('mushSettings');x.classList.add('hidden');x.setAttribute('aria-hidden','true')}
 if($('chatSendBtn'))$('chatSendBtn').onclick=sendChat;
+if($('chatWoodSendBtn'))$('chatWoodSendBtn').onclick=openChatWoodPickerFromComposer;
 if($('chatInviteYesBtn'))$('chatInviteYesBtn').onclick=function(){answerChatInvite(true,this)};
 if($('chatInviteNoBtn'))$('chatInviteNoBtn').onclick=function(){answerChatInvite(false,this)};
 if($('chatInviteReplyBtn'))$('chatInviteReplyBtn').onclick=replyChatInvite;
