@@ -1581,3 +1581,201 @@
   background:#245d34;
   border-color:#69b77c;
 }
+
+
+/* V63 — destinataire dans la barre du haut */
+.chatHeaderTop{
+  gap:7px!important;
+  padding-top:max(8px,env(safe-area-inset-top))!important;
+  padding-bottom:8px!important;
+  overflow:visible!important;
+}
+.topChatRecipient{
+  position:relative;
+  flex:1 1 auto;
+  min-width:0;
+  display:flex;
+  align-items:center;
+  gap:6px;
+}
+.topChatRecipientLabel{
+  flex:none;
+  font-size:13px;
+  font-weight:1000;
+  color:#dff4e5;
+  white-space:nowrap;
+}
+.topChatRecipientBox{
+  position:relative;
+  flex:1 1 auto;
+  min-width:0;
+}
+#chatRecipientSearch{
+  width:100%;
+  height:42px;
+  min-width:0;
+  padding:0 10px;
+  border:1px solid #4f8060;
+  border-radius:12px;
+  outline:none;
+  background:#102a19;
+  color:#fff;
+  font-size:13px;
+  font-weight:900;
+}
+#chatRecipientSearch:focus{
+  border-color:#71df91;
+  box-shadow:0 0 0 2px rgba(113,223,145,.13);
+}
+.chatRecipientResults{
+  position:absolute;
+  left:0;
+  right:0;
+  top:47px;
+  z-index:120;
+  max-height:280px;
+  overflow:auto;
+  padding:5px;
+  border:1px solid #4f8060;
+  border-radius:12px;
+  background:#09170e;
+  box-shadow:0 14px 36px rgba(0,0,0,.62);
+}
+.chatRecipientResults button{
+  display:block!important;
+  width:100%!important;
+  height:auto!important;
+  min-height:42px!important;
+  margin:0!important;
+  padding:8px 10px!important;
+  border:0!important;
+  border-bottom:1px solid #213a29!important;
+  border-radius:8px!important;
+  background:transparent!important;
+  color:#fff!important;
+  text-align:left!important;
+  font-size:13px!important;
+  font-weight:850!important;
+}
+.chatRecipientResults button:last-child{border-bottom:0!important}
+.chatRecipientResults button:active{background:#1b4429!important}
+.chatRecipientResults button strong{display:block;font-size:13px}
+.chatRecipientResults button small{display:block;margin-top:2px;color:#a8c9b2;font-size:10px}
+.chatHeaderTop .topInstall{
+  flex:none!important;
+  height:42px!important;
+  padding:0 8px!important;
+  font-size:10px!important;
+}
+.chatHeaderTop .topSettings{
+  flex:none!important;
+  width:42px!important;
+  height:42px!important;
+  padding:0!important;
+}
+
+/* V63 — chat directement en haut de l'accueil */
+.mushroomHomePanel{
+  padding-top:10px!important;
+}
+.homeChatCardTop{
+  margin:0 0 13px!important;
+  border:1px solid #416c4e!important;
+  border-radius:15px!important;
+  box-shadow:none!important;
+}
+.homeChatCardTop .chatTopLine{
+  padding:8px 10px!important;
+}
+.homeChatCardTop .chatTopLine b{
+  font-size:14px!important;
+}
+.homeChatCardTop .chatTopLine span{
+  font-size:10px!important;
+}
+.homeChatCardTop .chatTopLine em{
+  padding:4px 7px!important;
+  font-size:9px!important;
+}
+.homeChatCardTop .chatMessages{
+  max-height:170px!important;
+  min-height:74px;
+  padding:8px!important;
+  gap:7px!important;
+}
+.homeChatCardTop .chatMessage{
+  max-width:92%!important;
+  padding:7px 9px!important;
+  border-radius:11px 11px 11px 4px!important;
+}
+.homeChatCardTop .chatMessage.mine{
+  border-radius:11px 11px 4px 11px!important;
+}
+.homeChatCardTop .chatMessageText{
+  font-size:13px!important;
+  line-height:1.28!important;
+}
+.homeChatCardTop .chatMessageHead{
+  margin-bottom:3px!important;
+}
+.homeChatCardTop .chatMessageHead b{
+  font-size:11px!important;
+}
+.homeChatCardTop .chatMessageHead time{
+  font-size:9px!important;
+}
+.homeChatCardTop .chatTarget{
+  margin-bottom:3px!important;
+  padding:2px 5px!important;
+  font-size:9px!important;
+}
+.homeChatCardTop .chatComposer{
+  padding:8px!important;
+  gap:5px!important;
+}
+.chatRecipientSelectHidden{
+  display:none!important;
+}
+.chatSendLine{
+  display:grid;
+  grid-template-columns:minmax(0,1fr) 82px;
+  gap:7px;
+  align-items:stretch;
+}
+.chatSendLine textarea{
+  width:100%;
+  min-height:44px!important;
+  max-height:84px!important;
+  resize:none!important;
+  padding:10px!important;
+  border-radius:10px!important;
+}
+.chatSendLine .chatSendBtn{
+  min-height:44px!important;
+  padding:6px!important;
+  font-size:11px!important;
+  border-radius:10px!important;
+}
+.chatStatusCompact{
+  margin-top:1px!important;
+  padding:6px 8px!important;
+  font-size:10px!important;
+}
+.chatStatusCompact:empty{display:none}
+.homeChatCardTop .chatActions{
+  margin-top:5px!important;
+  gap:5px!important;
+}
+.homeChatCardTop .chatYesBtn,
+.homeChatCardTop .chatReplyBtn{
+  min-height:27px!important;
+  padding:3px 7px!important;
+  font-size:9px!important;
+}
+
+@media(max-width:420px){
+  .chatHeaderTop{gap:5px!important}
+  .topChatRecipientLabel{font-size:11px}
+  #chatRecipientSearch{font-size:12px;padding:0 8px}
+  .chatHeaderTop .topInstall{padding:0 6px!important;font-size:9px!important}
+}
