@@ -4,9 +4,9 @@
 <meta name="apple-mobile-web-app-title" content="Champignons">
 <meta name="mobile-web-app-capable" content="yes">
 <title>Champignons</title>
-<link rel="manifest" href="manifest.webmanifest?v=73">
+<link rel="manifest" href="manifest.webmanifest?v=74">
 <link rel="apple-touch-icon" href="icon.svg">
-<link rel="stylesheet" href="champignons.css?v=73">
+<link rel="stylesheet" href="champignons.css?v=74">
 
 </head><body>
 <header class="mushTop standaloneTop chatHeaderTop">
@@ -217,7 +217,28 @@
       <button id="chatInviteYesBtn" type="button" class="btn chatInviteYes">✅ OUI, JE VIENS</button>
       <button id="chatInviteNoBtn" type="button" class="btn chatInviteNo">❌ NON, JE PEUX PAS</button>
       <button id="chatInviteReplyBtn" type="button" class="btn secondary chatInviteReply">💬 RÉPONDRE</button>
-      <button id="chatInviteWoodBtn" type="button" class="btn chatInviteWood hidden">🌲 CHOISIR UN AUTRE BOIS</button>
+    </div>
+    <div id="chatInviteChangePanel" class="chatInviteChangePanel hidden">
+      <label>
+        <span>🌲 AUTRE BOIS</span>
+        <select id="chatInviteWoodSelect">
+          <option value="">Garder le bois proposé</option>
+        </select>
+      </label>
+      <label>
+        <span>🕒 AUTRE HORAIRE</span>
+        <select id="chatInviteTimeSelect">
+          <option value="">Garder l’horaire proposé</option>
+          <option value="vers 12 h–13 h">vers 12 h–13 h</option>
+          <option value="vers 13 h–14 h">vers 13 h–14 h</option>
+          <option value="vers 14 h–15 h">vers 14 h–15 h</option>
+          <option value="vers 15 h–16 h">vers 15 h–16 h</option>
+          <option value="vers 16 h–17 h">vers 16 h–17 h</option>
+          <option value="vers 17 h–18 h">vers 17 h–18 h</option>
+        </select>
+      </label>
+      <button id="chatInviteChangeSendBtn" type="button" class="btn chatInviteChangeSend">📨 ENVOYER LA NOUVELLE PROPOSITION</button>
+      <div id="chatInviteChangeStatus" class="status chatInviteChangeStatus"></div>
     </div>
   </div>
 </div>
@@ -238,11 +259,11 @@
   <h2>🍄 INSTALLER CHAMPIGNONS</h2>
   <div id="installHelpText" class="installSteps"></div>
 </div></div>
-<script src="config.js?v=73"></script>
-<script src="champignons.js?v=73" defer></script>
+<script src="config.js?v=74"></script>
+<script src="champignons.js?v=74" defer></script>
 <script>
 (function(){
-  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=73',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
+  if('serviceWorker' in navigator){window.addEventListener('load',function(){navigator.serviceWorker.register('sw.js?v=74',{scope:'./',updateViaCache:'none'}).catch(function(){})})}
 })();
 </script>
 </body></html>
